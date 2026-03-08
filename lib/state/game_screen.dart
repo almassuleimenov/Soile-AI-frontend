@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dimash/state/success_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -36,10 +37,16 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     _pulseController.repeat(reverse: true);
   }
 
+  // Обработка отпускания кнопки
   void _stopRecording() {
     setState(() => _isRecording = false);
-    _pulseController.stop();
-    _pulseController.animateTo(0.0, duration: const Duration(milliseconds: 300));
+    _pulseController.stop(); 
+    _pulseController.animateTo(0.0, duration: const Duration(milliseconds: 300)); 
+    
+    // ИМИТАЦИЯ БЭКЕНДА: Ждем 1 секунду и показываем Экран Успеха
+    Future.delayed(const Duration(seconds: 1), () {
+      SuccessScreen.show(context);
+    });
   }
 
   @override

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart'; // Наш новый супер-бар
-import 'state/game_screen.dart'; // Путь к твоему экрану тренажера
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+import 'state/game_screen.dart'; 
 import 'state/map_screen.dart';
 
 void main() {
@@ -18,7 +18,7 @@ class CapybaraApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: const Color(0xFFFFCC00),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA), // Наш жемчужный фон
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
         useMaterial3: true,
       ),
       home: const MainScreen(),
@@ -34,7 +34,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 1; // По умолчанию Тренажер (индекс 1)
+  int _currentIndex = 0; // Поставил 0 (Карта), чтобы ты сразу увидел результат
 
   final List<Widget> _screens = [
     const MapScreen(),
@@ -44,34 +44,32 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold - базовый каркас экрана
     return Scaffold(
-      // 1. Само тело экрана (Тренажер, Карта или Профиль)
+      // 1. ПЕРВАЯ МАГИЧЕСКАЯ СТРОЧКА:
+      // Заставляет контент (нашу Карту) залезать прямо ПОД нижнее меню
+      extendBody: true, 
+      
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _screens[_currentIndex],
       ),
       
-      // 2. Наш новый изогнутый Footer как на картинке!
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
-        // Цвет фона за баром (он должен совпадать с фоном приложения, чтобы вырез смотрелся органично)
-        backgroundColor: const Color(0xFFF8F9FA), 
-        // Цвет самого меню
+        // 2. ВТОРАЯ МАГИЧЕСКАЯ СТРОЧКА:
+        // Теперь фон за вырезом прозрачный, и мы видим градиент экрана!
+        backgroundColor: Colors.transparent, 
+        
         color: Colors.white, 
-        // Цвет активной "летающей" кнопки
         buttonBackgroundColor: const Color.fromARGB(255, 86, 168, 230), 
-        height: 65, // Делаем его не слишком толстым
-        // Настройка физики анимации (Cubic дает классный эффект перекатывания)
+        height: 65,
         animationCurve: Curves.easeInOutCubic,
         animationDuration: const Duration(milliseconds: 400),
         
-        // Сами иконки
         items: [
           Icon(
             Icons.map_rounded, 
             size: 30, 
-            // Если иконка активна - делаем ее белой, если нет - серой
             color: _currentIndex == 0 ? Colors.white : Colors.grey.shade400,
           ),
           Icon(
@@ -85,8 +83,6 @@ class _MainScreenState extends State<MainScreen> {
             color: _currentIndex == 2 ? Colors.white : Colors.grey.shade400,
           ),
         ],
-        
-        // Обработка нажатий
         onTap: (index) {
           setState(() {
             _currentIndex = index;

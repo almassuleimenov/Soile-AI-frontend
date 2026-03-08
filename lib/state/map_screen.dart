@@ -2,96 +2,154 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_state.dart';
 
-class MapScreen extends ConsumerWidget {
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _topBarController;
+  late Animation<Offset> _topBarOffset;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // 1. УВЕЛИЧИЛИ ВРЕМЯ: Теперь анимация длится 800 мс (очень плавно)
+    _topBarController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    // Сделали появление более мягким и "дорогим" (easeOutCubic)
+    _topBarOffset = Tween<Offset>(
+      begin: const Offset(0, -2.0), // Начинает путь высоко за экраном
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _topBarController,
+      curve: Curves.easeOutCubic, 
+    ));
+
+    // Плавно опускаем плашку сразу при заходе
+    _topBarController.forward();
+  }
+
+  @override
+  void dispose() {
+    _topBarController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
-    final currentLevel = 3;
+    // Поставим 2 уровень как текущий, чтобы ты увидел 1 пройденный (снизу) и 1 текущий
+    final currentLevel = 2; 
     final totalLevels = 15;
 
-    return SafeArea(
-      child: Stack(
-        children: [
-          // 1. ФОН (Имитация карты с "озерами и лесами")
-          _buildMapBackground(),
+    return Stack(
+      children: [
+        // Фон
+        _buildMapBackground(),
 
-          Column(
-            children: [
-              // 2. ВЕРХНЯЯ ПАНЕЛЬ (Теперь мягкая и закругленная)
-              _buildTopBar(userData.coins),
+        // Карта уровней
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification) {
+              if (notification.scrollDelta != null && notification.scrollDelta!.abs() > 0) {
+                if (_topBarController.status == AnimationStatus.completed || 
+                    _topBarController.status == AnimationStatus.forward) {
+                  // При скролле прячем плашку чуть быстрее (чтобы не мешала)
+                  _topBarController.reverse();
+                }
+              }
+            } else if (notification is ScrollEndNotification) {
+              // Возвращаем плавно
+              _topBarController.forward();
+            }
+            return false;
+          },
+          child: ListView.builder(
+            // 2. ГЛАВНЫЙ СЕКРЕТ: reverse переворачивает список! 
+            // Теперь мы автоматически начинаем с самого низа (с 1 уровня).
+            reverse: true, 
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            padding: const EdgeInsets.only(top: 150, bottom: 120),
+            itemCount: totalLevels,
+            itemBuilder: (context, index) {
+              // Так как список перевернут, index 0 - это уровень 1 (в самом низу)
+              final levelNumber = index + 1; 
               
-              // 3. ЗИГЗАГООБРАЗНАЯ КАРТА
-              Expanded(
-                child: ListView.builder(
-                  // Добавляем плавную физику скролла (как на iOS)
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+              final isCompleted = levelNumber < currentLevel;
+              final isCurrent = levelNumber == currentLevel;
+              final isLocked = levelNumber > currentLevel;
+
+              final alignments = [0.0, 0.4, 0.0, -0.4];
+              final alignX = alignments[index % alignments.length];
+
+              return Align(
+                alignment: Alignment(alignX, 0.0),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: PathNodeButton(
+                    levelNumber: levelNumber,
+                    isCompleted: isCompleted,
+                    isCurrent: isCurrent,
+                    isLocked: isLocked,
+                    onTap: () {
+                      if (isLocked) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Сначала пройди предыдущие уровни! 🔒'),
+                            duration: Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(20)),
+                            ),
+                          ),
+                        );
+                      } else if (isCurrent) {
+                        print('Запускаем уровень $levelNumber!');
+                      } else {
+                        print('Перепроходим уровень $levelNumber');
+                      }
+                    },
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  itemCount: totalLevels,
-                  itemBuilder: (context, index) {
-                    final levelNumber = totalLevels - index - 1;
-                    
-                    final isCompleted = levelNumber < currentLevel;
-                    final isCurrent = levelNumber == currentLevel;
-                    final isLocked = levelNumber > currentLevel;
-
-                    final alignments = [0.0, 0.4, 0.0, -0.4];
-                    final alignX = alignments[index % alignments.length];
-
-                    return Align(
-                      alignment: Alignment(alignX, 0.0),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: PathNodeButton(
-                          levelNumber: levelNumber,
-                          isCompleted: isCompleted,
-                          isCurrent: isCurrent,
-                          isLocked: isLocked,
-                          onTap: () {
-                            if (isLocked) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Сначала пройди предыдущие уровни! 🔒'),
-                                  duration: Duration(seconds: 1),
-                                  behavior: SnackBarBehavior.floating, // Делаем снэкбар плавающим
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                                  ),
-                                ),
-                              );
-                            } else if (isCurrent) {
-                              print('Запускаем уровень $levelNumber!');
-                            } else {
-                              print('Перепроходим уровень $levelNumber');
-                            }
-                          },
-                        ),
-                      ),
-                    );
-                  },
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        ],
-      ),
+        ),
+
+        // Плавающая верхняя панель
+        Align(
+          alignment: Alignment.topCenter,
+          child: SlideTransition(
+            position: _topBarOffset,
+            child: SafeArea(
+              bottom: false,
+              child: _buildTopBar(userData.coins),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // --- МЯГКИЙ ВИДЖЕТ ВЕРХНЕЙ ПАНЕЛИ ---
   Widget _buildTopBar(int coins) {
     return Container(
-      margin: const EdgeInsets.all(16), // Отступы от краев экрана
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30), // Сильное закругление
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05), // Очень нежная тень
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -130,22 +188,22 @@ class MapScreen extends ConsumerWidget {
     );
   }
 
-  // --- ФОН КАРТЫ (Градиент и мягкие формы) ---
   Widget _buildMapBackground() {
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFFE8F5E9), // Очень светлый зеленый сверху
-            Color(0xFFC8E6C9), // Чуть темнее зеленый снизу
+            Color(0xFFE8F5E9),
+            Color(0xFFC8E6C9), 
           ],
         ),
       ),
       child: Stack(
         children: [
-          // "Озеро" (мягкий синий круг на фоне)
           Positioned(
             top: 200,
             left: -50,
@@ -155,7 +213,6 @@ class MapScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
-                // Размываем края
                 boxShadow: [
                   BoxShadow(
                     color: Colors.blue.withValues(alpha: 0.1),
@@ -165,7 +222,6 @@ class MapScreen extends ConsumerWidget {
               ),
             ),
           ),
-          // "Холм" (светло-желтый овал)
           Positioned(
             bottom: 100,
             right: -100,
@@ -293,18 +349,14 @@ class _PathNodeButtonState extends State<PathNodeButton> {
     } else if (widget.isCurrent) {
       return const Icon(Icons.star_rounded, color: Colors.white, size: 45);
     } else {
-      // ИСПОЛЬЗУЕМ РАЗНЫЕ ИКОНКИ ДЛЯ ЗАКРЫТЫХ УРОВНЕЙ
-      // В зависимости от номера уровня, показываем разные мягкие иконки
       final List<IconData> lockedIcons = [
         Icons.cloud_rounded,
-        Icons.park_rounded, // Дерево
-        Icons.ac_unit_rounded, // Снежинка
-        Icons.filter_drama_rounded, // Облако
-        Icons.water_drop_rounded, // Капля
+        Icons.park_rounded,
+        Icons.ac_unit_rounded,
+        Icons.filter_drama_rounded,
+        Icons.water_drop_rounded,
       ];
-      
       final selectedIcon = lockedIcons[widget.levelNumber % lockedIcons.length];
-
       return Icon(selectedIcon, color: Colors.grey.shade400, size: 30);
     }
   }

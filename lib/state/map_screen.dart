@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_state.dart';
+import 'game_screen.dart'; // <--- ДОБАВИЛИ ИМПОРТ ТРЕНАЖЕРА (проверь правильность пути!)
+import 'gymnastics_screen.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -17,22 +19,19 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     
-    // 1. УВЕЛИЧИЛИ ВРЕМЯ: Теперь анимация длится 800 мс (очень плавно)
     _topBarController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
 
-    // Сделали появление более мягким и "дорогим" (easeOutCubic)
     _topBarOffset = Tween<Offset>(
-      begin: const Offset(0, -2.0), // Начинает путь высоко за экраном
+      begin: const Offset(0, -2.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _topBarController,
       curve: Curves.easeOutCubic, 
     ));
 
-    // Плавно опускаем плашку сразу при заходе
     _topBarController.forward();
   }
 
@@ -45,35 +44,28 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
-    // Поставим 2 уровень как текущий, чтобы ты увидел 1 пройденный (снизу) и 1 текущий
     final currentLevel = 2; 
     final totalLevels = 15;
 
     return Stack(
       children: [
-        // Фон
         _buildMapBackground(),
 
-        // Карта уровней
         NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             if (notification is ScrollUpdateNotification) {
               if (notification.scrollDelta != null && notification.scrollDelta!.abs() > 0) {
                 if (_topBarController.status == AnimationStatus.completed || 
                     _topBarController.status == AnimationStatus.forward) {
-                  // При скролле прячем плашку чуть быстрее (чтобы не мешала)
                   _topBarController.reverse();
                 }
               }
             } else if (notification is ScrollEndNotification) {
-              // Возвращаем плавно
               _topBarController.forward();
             }
             return false;
           },
           child: ListView.builder(
-            // 2. ГЛАВНЫЙ СЕКРЕТ: reverse переворачивает список! 
-            // Теперь мы автоматически начинаем с самого низа (с 1 уровня).
             reverse: true, 
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -81,7 +73,6 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             padding: const EdgeInsets.only(top: 150, bottom: 120),
             itemCount: totalLevels,
             itemBuilder: (context, index) {
-              // Так как список перевернут, index 0 - это уровень 1 (в самом низу)
               final levelNumber = index + 1; 
               
               final isCompleted = levelNumber < currentLevel;
@@ -113,7 +104,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                           ),
                         );
                       } else if (isCurrent) {
-                        print('Запускаем уровень $levelNumber!');
+                        // --- ШАГ 2: ОТКРЫВАЕМ ИГРУ ПОВЕРХ КАРТЫ ---
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const GymnasticsScreen()),
+                          );
                       } else {
                         print('Перепроходим уровень $levelNumber');
                       }
@@ -125,7 +120,6 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
           ),
         ),
 
-        // Плавающая верхняя панель
         Align(
           alignment: Alignment.topCenter,
           child: SlideTransition(

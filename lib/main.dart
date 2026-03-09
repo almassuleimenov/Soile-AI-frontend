@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'state/game_screen.dart'; 
 import 'state/map_screen.dart';
+// Обрати внимание: импорт game_screen.dart отсюда мы убрали, 
+// так как теперь это будет отдельный экран, а не вкладка.
 
 void main() {
   runApp(const ProviderScope(child: CapybaraApp()));
@@ -34,19 +35,19 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0; // Поставил 0 (Карта), чтобы ты сразу увидел результат
+  int _currentIndex = 0; // Оставляем Карту экраном по умолчанию
 
+  // Обновленный список экранов
   final List<Widget> _screens = [
     const MapScreen(),
-    const GameScreen(),
+    // Временная заглушка для Магазина
+    const Center(child: Text('Экран: Магазин', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
     const Center(child: Text('Экран: Профиль', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. ПЕРВАЯ МАГИЧЕСКАЯ СТРОЧКА:
-      // Заставляет контент (нашу Карту) залезать прямо ПОД нижнее меню
       extendBody: true, 
       
       body: AnimatedSwitcher(
@@ -56,10 +57,7 @@ class _MainScreenState extends State<MainScreen> {
       
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
-        // 2. ВТОРАЯ МАГИЧЕСКАЯ СТРОЧКА:
-        // Теперь фон за вырезом прозрачный, и мы видим градиент экрана!
         backgroundColor: Colors.transparent, 
-        
         color: Colors.white, 
         buttonBackgroundColor: const Color.fromARGB(255, 86, 168, 230), 
         height: 65,
@@ -72,8 +70,9 @@ class _MainScreenState extends State<MainScreen> {
             size: 30, 
             color: _currentIndex == 0 ? Colors.white : Colors.grey.shade400,
           ),
+          // Заменили иконку микрофона на иконку Магазина
           Icon(
-            Icons.mic_rounded, 
+            Icons.storefront_rounded, 
             size: 30, 
             color: _currentIndex == 1 ? Colors.white : Colors.grey.shade400,
           ),

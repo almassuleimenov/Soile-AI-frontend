@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<key>NSMicrophoneUsageDescription</key>
+    <string>Нам нужен микрофон, чтобы слышать, как ты произносишь звуки!</string>
+	
 </dict>
 </plist>

@@ -12,7 +12,7 @@ class SuccessScreen extends ConsumerStatefulWidget {
       PageRouteBuilder(
         opaque: false, 
         barrierDismissible: false, 
-        pageBuilder: (BuildContext context, _, __) {
+        pageBuilder: (BuildContext context, _, _) {
           return const SuccessScreen();
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {

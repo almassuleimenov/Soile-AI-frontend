@@ -95,7 +95,7 @@ class ProfileScreen extends ConsumerWidget {
                       textColor: textColor,
                       trailing: Switch(
                         value: isDarkMode,
-                        activeColor: const Color(0xFFFFCC00),
+                        activeThumbColor: const Color(0xFFFFCC00),
                         onChanged: (val) {
                           // Переключаем тему через Riverpod!
                           ref.read(themeProvider.notifier).state = val;
@@ -112,7 +112,7 @@ class ProfileScreen extends ConsumerWidget {
                       textColor: textColor,
                       trailing: Switch(
                         value: true,
-                        activeColor: Colors.green,
+                        activeThumbColor: Colors.green,
                         onChanged: (val) {}, // Пока пустышка
                       ),
                     ),

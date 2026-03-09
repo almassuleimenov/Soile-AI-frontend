@@ -133,7 +133,8 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                   
                   GestureDetector(
                     onTap: () {
-                      ref.read(userProvider.notifier).addCoins(10);
+                      // ЗДЕСЬ ИЗМЕНЕНИЕ: вызываем finishLevel(10) вместо addCoins(10)
+                      ref.read(userProvider.notifier).finishLevel(10);
                       Navigator.of(context).pop();
                     },
                     child: Container(

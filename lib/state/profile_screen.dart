@@ -59,14 +59,30 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 30),
 
               // --- 3. СТАТИСТИКА (Карточки) ---
+             // --- 3. СТАТИСТИКА (Карточки) ---
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard('Өтілді', '12', Icons.local_fire_department_rounded, Colors.orange, cardColor, textColor),
+                    // ЗДЕСЬ ИЗМЕНЕНИЯ: Вместо '12' подставляем (userData.currentLevel - 1)
+                    child: _buildStatCard(
+                        'Өтілді', 
+                        '${userData.currentLevel > 1 ? userData.currentLevel - 1 : 0}', 
+                        Icons.local_fire_department_rounded, 
+                        Colors.orange, 
+                        cardColor, 
+                        textColor
+                    ),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
-                    child: _buildStatCard('Тиындар', '${userData.coins}', Icons.diamond_rounded, Colors.blueAccent, cardColor, textColor),
+                    child: _buildStatCard(
+                        'Тиындар', 
+                        '${userData.coins}', 
+                        Icons.diamond_rounded, 
+                        Colors.blueAccent, 
+                        cardColor, 
+                        textColor
+                    ),
                   ),
                 ],
               ),

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
-import 'package:noise_meter/noise_meter.dart';
+import 'package:record/record.dart'; // <--- НОВЫЙ И НАДЕЖНЫЙ ПЛАГИН
 import 'package:permission_handler/permission_handler.dart';
 import 'success_screen.dart';
 import 'user_state.dart';
@@ -20,26 +20,28 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   bool _isSuccess = false;
   double _progress = 0.0; // От 0.0 до 1.0
 
-  NoiseMeter? _noiseMeter;
-  StreamSubscription<NoiseReading>? _noiseSubscription;
+  late final AudioRecorder _audioRecorder;
+  StreamSubscription<Amplitude>? _amplitudeSubscription;
 
-  // Настройка чувствительности (подбирается на тестах)
-  // Обычно тишина это 30-40 dB. Громкий звук вблизи микрофона - 70-80 dB.
-  final double _noiseThreshold = 65.0; 
+  // Настройка чувствительности:
+  // Пакет record возвращает значения от -160.0 (полная тишина) до 0.0 (очень громко).
+  // Обычная речь вблизи телефона - это примерно от -30.0 до -15.0
+  final double _noiseThreshold = -25.0; 
 
   @override
   void initState() {
     super.initState();
-    _noiseMeter = NoiseMeter();
+    _audioRecorder = AudioRecorder();
   }
 
   @override
   void dispose() {
     _stopListening();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
-  // --- ЛОГИКА ЗАПИСИ И СЧИТЫВАНИЯ ДЕЦИБЕЛ ---
+  // --- ЛОГИКА ЗАПИСИ И СЧИТЫВАНИЯ ГРОМКОСТИ ---
   Future<void> _startListening() async {
     if (_isSuccess) return;
 
@@ -48,28 +50,31 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     if (!status.isGranted) {
       status = await Permission.microphone.request();
       if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Нужно разрешение на микрофон! 🎙️')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Нужно разрешение на микрофон! 🎙️')),
+          );
+        }
         return;
       }
     }
 
-    setState(() {
-      _isRecording = true;
-    });
-
     try {
-      // 2. Начинаем слушать микрофон
-      _noiseSubscription = _noiseMeter?.noise.listen((NoiseReading noise) {
+      // 2. Начинаем слушать микрофон (работает как стрим, без сохранения файла на диск)
+      await _audioRecorder.startStream(const RecordConfig());
+
+      setState(() {
+        _isRecording = true;
+      });
+
+      // 3. Подписываемся на изменения громкости (каждые 100 мс)
+      _amplitudeSubscription = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((Amplitude amplitude) {
         if (!_isRecording || _isSuccess) return;
 
         setState(() {
-          // Если уровень шума больше нашего порога (ребенок шипит)
-          if (noise.meanDecibel > _noiseThreshold) {
-            // Добавляем прогресс (нужно примерно 3 секунды, данные приходят часто)
-            // Пакет noise_meter шлет данные примерно каждые 100-200 мс
-            _progress += 0.03; 
+          // Если звук громче порога (ребенок шипит в микрофон)
+          if (amplitude.current > _noiseThreshold) {
+            _progress += 0.04; 
 
             // УСЛОВИЕ ПОБЕДЫ!
             if (_progress >= 1.0) {
@@ -91,15 +96,22 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     }
   }
 
-  void _stopListening() {
-    setState(() {
-      _isRecording = false;
-      // Если отпустили кнопку до победы - сбрасываем прогресс (или оставляем, как хочешь)
-      if (!_isSuccess) {
-        _progress = 0.0;
-      }
-    });
-    _noiseSubscription?.cancel();
+  Future<void> _stopListening() async {
+    _amplitudeSubscription?.cancel();
+    
+    if (await _audioRecorder.isRecording()) {
+      await _audioRecorder.stop();
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        // Если отпустили кнопку до победы - сбрасываем прогресс
+        if (!_isSuccess) {
+          _progress = 0.0;
+        }
+      });
+    }
   }
 
   @override
@@ -193,7 +205,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   
                   // --- НАСТОЯЩАЯ КНОПКА МИКРОФОНА ---
                   GestureDetector(
-                    // Используем onLongPressStart и onLongPressEnd, как ты просил!
+                    // Используем onLongPressStart и onLongPressEnd для удержания
                     onLongPressStart: (_) => _startListening(),
                     onLongPressEnd: (_) => _stopListening(),
                     onTap: () {

@@ -43,8 +43,9 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
-    final isDarkMode = ref.watch(themeProvider); // <-- СЛУШАЕМ ТЕМУ!
-    final currentLevel = 2; 
+    final isDarkMode = ref.watch(themeProvider);
+    
+    final currentLevel = userData.currentLevel; 
     final totalLevels = 15;
 
     return Stack(

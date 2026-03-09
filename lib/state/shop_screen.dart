@@ -1,6 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'user_state.dart';
+
+// Наш боевой сервер на Render!
+const String baseUrl = 'https://capybara-api-0cte.onrender.com';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});
@@ -11,15 +16,77 @@ class ShopScreen extends ConsumerStatefulWidget {
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
   final Set<int> _purchasedItems = {};
+  List<dynamic> _shopItems = [];
+  bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _shopItems = [
-    {'name': 'Ковбой', 'emoji': '🤠', 'price': 50, 'color': 0xFFFFF3E0},
-    {'name': 'Ниндзя', 'emoji': '🥷', 'price': 100, 'color': 0xFFECEFF1},
-    {'name': 'Космонавт', 'emoji': '🧑‍🚀', 'price': 150, 'color': 0xFFEDE7F6},
-    {'name': 'Маг', 'emoji': '🧙‍♂️', 'price': 200, 'color': 0xFFE8F5E9},
-    {'name': 'Пират', 'emoji': '🏴‍☠️', 'price': 300, 'color': 0xFFFFEBEE},
-    {'name': 'Король', 'emoji': '🤴', 'price': 500, 'color': 0xFFFFF9C4},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchSkins(); // Загружаем скины при открытии магазина
+  }
+
+  // Функция для получения списка скинов с бэкенда
+  Future<void> _fetchSkins() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/shop/skins'));
+      if (response.statusCode == 200) {
+        // Декодируем JSON, используя utf8, чтобы эмодзи отображались правильно
+        final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
+        setState(() {
+          _shopItems = decodedData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Ошибка загрузки магазина: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Функция для покупки скина на бэкенде
+  Future<void> _buySkin(int index, Map<String, dynamic> item) async {
+    final userData = ref.read(userProvider);
+    
+    if (_purchasedItems.contains(index)) return; 
+
+    if (userData.coins >= item['price']) {
+      try {
+        final response = await http.post(Uri.parse('$baseUrl/api/shop/buy/${item['id']}'));
+        
+        if (response.statusCode == 200) {
+          setState(() {
+            _purchasedItems.add(index);
+          });
+          // Списываем монеты локально, чтобы цифра в шапке обновилась моментально
+          ref.read(userProvider.notifier).addCoins(-item['price']);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Ура! Вы купили скин ${item['name']} 🎉'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            );
+          }
+        } else {
+           print('Сервер не разрешил покупку: ${response.body}');
+        }
+      } catch (e) {
+         print('Ошибка покупки: $e');
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Не хватает монеток! Пройди уровни 💎'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,38 +111,39 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
-                    // Пакет Google Fonts автоматически подхватит шрифт Nunito, 
-                    // так как мы задали его в теме. Явно указывать fontfamily не нужно.
                   ),
                 ),
               ),
             ),
 
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120),
-                physics: const BouncingScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, 
-                  childAspectRatio: 0.75, 
-                  crossAxisSpacing: 15, 
-                  mainAxisSpacing: 20, 
-                ),
-                itemCount: _shopItems.length,
-                itemBuilder: (context, index) {
-                  final item = _shopItems[index];
-                  final isPurchased = _purchasedItems.contains(index);
-                  final canAfford = userData.coins >= item['price'];
+              // Пока грузятся данные, показываем крутилку
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFCC00)))
+                : GridView.builder(
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120),
+                    physics: const BouncingScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2, 
+                      childAspectRatio: 0.75, 
+                      crossAxisSpacing: 15, 
+                      mainAxisSpacing: 20, 
+                    ),
+                    itemCount: _shopItems.length,
+                    itemBuilder: (context, index) {
+                      final item = _shopItems[index];
+                      final isPurchased = _purchasedItems.contains(index);
+                      final canAfford = userData.coins >= item['price'];
 
-                  return _buildShopCard(
-                    index: index,
-                    item: item,
-                    isPurchased: isPurchased,
-                    canAfford: canAfford,
-                    isDarkMode: isDarkMode,
-                  );
-                },
-              ),
+                      return _buildShopCard(
+                        index: index,
+                        item: item,
+                        isPurchased: isPurchased,
+                        canAfford: canAfford,
+                        isDarkMode: isDarkMode,
+                      );
+                    },
+                  ),
             ),
           ],
         ),
@@ -108,14 +176,14 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
+                // Цвет теперь приходит из базы, используем его
                 color: Color(item['color']).withValues(alpha: isDarkMode ? 0.8 : 1.0),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: Center(
-                // --- ШАГ 3: УВЕЛИЧИВАЕМ РАЗМЕР ЭМОДЗИ/СТИКЕРА НА 40%+ ---
                 child: Text(
                   item['emoji'],
-                  style: const TextStyle(fontSize: 90), // <--- БЫЛО 60, СТАЛО 90!
+                  style: const TextStyle(fontSize: 90),
                 ),
               ),
             ),
@@ -128,7 +196,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 Text(
                   item['name'],
                   style: TextStyle(
-                    fontSize: 18, // Чуть увеличили имя, шрифт Nunito позволяет
+                    fontSize: 18, 
                     fontWeight: FontWeight.bold,
                     color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
                   ),
@@ -136,34 +204,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 const SizedBox(height: 8),
                 
                 GestureDetector(
-                  onTap: () {
-                    if (isPurchased) return; 
-
-                    if (canAfford) {
-                      setState(() {
-                        _purchasedItems.add(index);
-                      });
-                      ref.read(userProvider.notifier).addCoins(-item['price']);
-                      
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Ура! Вы купили скин ${item['name']} 🎉'),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Не хватает монеток! Пройди уровни 💎'),
-                          backgroundColor: Colors.redAccent,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                      );
-                    }
-                  },
+                  onTap: () => _buySkin(index, item),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(vertical: 8),

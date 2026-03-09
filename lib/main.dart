@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'state/map_screen.dart';
+import 'state/shop_screen.dart';
 // Обрати внимание: импорт game_screen.dart отсюда мы убрали, 
 // так как теперь это будет отдельный экран, а не вкладка.
 
@@ -40,8 +41,7 @@ class _MainScreenState extends State<MainScreen> {
   // Обновленный список экранов
   final List<Widget> _screens = [
     const MapScreen(),
-    // Временная заглушка для Магазина
-    const Center(child: Text('Экран: Магазин', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const ShopScreen(),
     const Center(child: Text('Экран: Профиль', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
   ];
 

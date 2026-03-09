@@ -9,53 +9,66 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
+// Теперь контроллер управляет не пульсацией, а ПРОГРЕССОМ (от 0 до 100%)
 class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+  late AnimationController _progressController;
   bool _isRecording = false;
+  bool _isSuccess = false; // Флаг, чтобы успех не вызывался дважды
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+    // Таймер ровно на 3 секунды (столько нужно "шипеть")
+    _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(seconds: 3),
     );
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  void _startRecording() {
-    setState(() => _isRecording = true);
-    _pulseController.repeat(reverse: true);
-  }
-
-  void _stopRecording() {
-    setState(() => _isRecording = false);
-    _pulseController.stop();
-    _pulseController.animateTo(0.0, duration: const Duration(milliseconds: 300));
-
-    // Имитация бэкенда
-    Future.delayed(const Duration(seconds: 1), () {
-      SuccessScreen.show(context);
+    // Слушаем изменение прогресса
+    _progressController.addListener(() {
+      setState(() {}); // Обновляем экран, чтобы рисовалась полоска
+      
+      // Если дошло до 100% (1.0) и мы еще не побеждали
+      if (_progressController.value == 1.0 && !_isSuccess) {
+        _isSuccess = true; // Ставим флаг победы
+        _stopRecording(); // Останавливаем "запись"
+        
+        // Показываем наш шикарный экран с конфетти!
+        SuccessScreen.show(context);
+      }
     });
   }
 
   @override
+  void dispose() {
+    _progressController.dispose();
+    super.dispose();
+  }
+
+  // Когда зажали кнопку микрофона
+  void _startRecording() {
+    if (_isSuccess) return; // Если уже победили, не даем нажать снова
+    setState(() => _isRecording = true);
+    // Начинаем плавно заполнять полоску вперед
+    _progressController.forward();
+  }
+
+  // Когда отпустили кнопку микрофона
+  void _stopRecording() {
+    if (!_isRecording) return;
+    setState(() => _isRecording = false);
+    
+    // Если отпустили рано (не дошли до 100%) - полоска плавно убывает обратно
+    if (!_isSuccess) {
+      _progressController.reverse(); 
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Scaffold дает нам полный экран с жемчужно-белым фоном
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
-        // Используем Stack, чтобы кнопка "Назад" плавала поверх контента
         child: Stack(
           children: [
             // --- ОСНОВНОЙ КОНТЕНТ ТРЕНАЖЕРА ---
@@ -64,99 +77,101 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 60), // Отступ чуть больше, чтобы не наехать на кнопку "Назад"
+                  const SizedBox(height: 60), 
                   
+                  // Буква, которую тренируем
                   const Text(
-                    'РАКЕТА',
+                    'С - С - С - С',
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
+                      letterSpacing: 4.0,
                       color: Color(0xFF2D3436),
                     ),
                   ),
                   
                   const Spacer(),
                   
-                  AnimatedScale(
-                    scale: _isRecording ? 1.15 : 1.0, 
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack, 
-                    child: Container(
-                      width: 250,
-                      height: 250,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          if (_isRecording)
-                            BoxShadow(
-                              color: const Color(0xFFFFCC00).withValues(alpha: 0.2),
-                              blurRadius: 50,
-                              spreadRadius: 20,
+                  // --- КРУГОВОЙ ПРОГРЕСС-БАР ВОКРУГ КАПИБАРЫ ---
+                  SizedBox(
+                    width: 280,
+                    height: 280,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 1. Серая фоновая дорожка (пустая)
+                        SizedBox(
+                          width: 280,
+                          height: 280,
+                          child: CircularProgressIndicator(
+                            value: 1.0,
+                            strokeWidth: 15,
+                            color: Colors.grey.shade200,
+                          ),
+                        ),
+                        
+                        // 2. Желтая дорожка, которая плавно заполняется!
+                        SizedBox(
+                          width: 280,
+                          height: 280,
+                          child: CircularProgressIndicator(
+                            value: _progressController.value,
+                            strokeWidth: 15,
+                            backgroundColor: Colors.transparent,
+                            color: const Color(0xFFFFCC00),
+                            strokeCap: StrokeCap.round, // Закругленные края у полоски
+                          ),
+                        ),
+
+                        // 3. Наш маскот внутри кольца
+                        AnimatedScale(
+                          scale: _isRecording ? 1.1 : 1.0, 
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutBack, 
+                          child: Container(
+                            width: 220,
+                            height: 220,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
                             ),
-                        ],
-                      ),
-                      // Помни про локальную Lottie, если у тебя нет интернета!
-                      // child: Lottie.asset('assets/lottie/capybara.json', fit: BoxFit.contain, ...),
-                      child: Lottie.network(
-                        'https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json',
-                        fit: BoxFit.contain, 
-                        repeat: true, 
-                        animate: true, 
-                      ),
+                            child: Lottie.network(
+                              'https://lottie.host/9ad3fb38-fc24-4161-889b-363d028643b9/bPRnUPe6ME.json',
+                              fit: BoxFit.contain, 
+                              repeat: true, 
+                              animate: true, 
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   
                   const Spacer(),
                   
+                  // --- КНОПКА МИКРОФОНА ---
                   GestureDetector(
                     onTapDown: (_) => _startRecording(),
                     onTapUp: (_) => _stopRecording(),
-                    onTapCancel: () => _stopRecording(),
-                    child: SizedBox(
-                      width: 150,
-                      height: 150,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _pulseAnimation.value,
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: const Color(0xFFFFCC00).withValues(alpha: 0.3),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: _isRecording ? 90 : 80,
-                            height: _isRecording ? 90 : 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFFFFCC00),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFFFCC00).withValues(alpha: 0.5),
-                                  blurRadius: _isRecording ? 20 : 10,
-                                  spreadRadius: _isRecording ? 5 : 0,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.mic_rounded,
-                              size: 40,
-                              color: Colors.white,
-                            ),
+                    onTapCancel: () => _stopRecording(), // Если палец уехал за кнопку
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: _isRecording ? 110 : 90,
+                      height: _isRecording ? 110 : 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isRecording ? const Color(0xFFFFB300) : const Color(0xFFFFCC00),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFFCC00).withValues(alpha: _isRecording ? 0.6 : 0.3),
+                            blurRadius: _isRecording ? 30 : 15,
+                            spreadRadius: _isRecording ? 10 : 0,
                           ),
                         ],
+                      ),
+                      child: Icon(
+                        Icons.mic_rounded,
+                        size: _isRecording ? 50 : 40,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -164,10 +179,10 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
                   Padding(
                     padding: const EdgeInsets.only(top: 20, bottom: 40),
                     child: Text(
-                      _isRecording ? 'Слушаю...' : 'Зажми, чтобы сказать',
+                      _isRecording ? 'Шипим...' : 'Зажми и тяни звук "С"',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                         color: _isRecording ? const Color(0xFFFFCC00) : Colors.grey.shade500,
                       ),
                     ),
@@ -176,7 +191,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
               ),
             ),
 
-            // --- ШАГ 3: КНОПКА ЗАКРЫТИЯ (КРЕСТИК) В ЛЕВОМ ВЕРХНЕМ УГЛУ ---
+            // КНОПКА НАЗАД В УГЛУ
             Align(
               alignment: Alignment.topLeft,
               child: Padding(
@@ -193,7 +208,6 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
                       ),
                     ],
                   ),
-                  // Кнопка, возвращающая на Карту
                   child: IconButton(
                     icon: const Icon(Icons.close_rounded, color: Colors.grey),
                     onPressed: () {

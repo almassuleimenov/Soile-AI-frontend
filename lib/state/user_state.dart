@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 // 1. Класс для хранения данных юзера (пока только монеты) остается без изменений
 class UserData {
@@ -29,3 +30,4 @@ class UserNotifier extends Notifier<UserData> {
 final userProvider = NotifierProvider<UserNotifier, UserData>(() {
   return UserNotifier();
 });
+final themeProvider = StateProvider<bool>((ref) => false);

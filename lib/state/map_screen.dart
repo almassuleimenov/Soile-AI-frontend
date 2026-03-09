@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_state.dart';
-import 'game_screen.dart'; // <--- ДОБАВИЛИ ИМПОРТ ТРЕНАЖЕРА (проверь правильность пути!)
 import 'gymnastics_screen.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -44,12 +43,13 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
+    final isDarkMode = ref.watch(themeProvider); // <-- СЛУШАЕМ ТЕМУ!
     final currentLevel = 2; 
     final totalLevels = 15;
 
     return Stack(
       children: [
-        _buildMapBackground(),
+        _buildMapBackground(isDarkMode), // Передаем тему в фон
 
         NotificationListener<ScrollNotification>(
           onNotification: (notification) {
@@ -91,6 +91,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                     isCompleted: isCompleted,
                     isCurrent: isCurrent,
                     isLocked: isLocked,
+                    isDarkMode: isDarkMode, // Передаем тему в кнопку
                     onTap: () {
                       if (isLocked) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,17 +99,13 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                             content: Text('Сначала пройди предыдущие уровни! 🔒'),
                             duration: Duration(seconds: 1),
                             behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
-                            ),
                           ),
                         );
                       } else if (isCurrent) {
-                        // --- ШАГ 2: ОТКРЫВАЕМ ИГРУ ПОВЕРХ КАРТЫ ---
                         Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const GymnasticsScreen()),
-                          );
+                          context,
+                          MaterialPageRoute(builder: (context) => const GymnasticsScreen()),
+                        );
                       } else {
                         print('Перепроходим уровень $levelNumber');
                       }
@@ -126,7 +123,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             position: _topBarOffset,
             child: SafeArea(
               bottom: false,
-              child: _buildTopBar(userData.coins),
+              child: _buildTopBar(userData.coins, isDarkMode), // Передаем тему
             ),
           ),
         ),
@@ -134,12 +131,12 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildTopBar(int coins) {
+  Widget _buildTopBar(int coins, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white, // Адаптивный цвет
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -153,25 +150,32 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           CircleAvatar(
-            backgroundColor: Colors.grey.shade100,
+            backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey.shade100,
             child: const Text('🦫', style: TextStyle(fontSize: 20)),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FD),
+              color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               children: [
                 const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  '$coins',
-                  style: const TextStyle(
-                    color: Colors.blueAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: Text(
+                    '$coins',
+                    key: ValueKey<int>(coins),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
               ],
@@ -182,18 +186,18 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildMapBackground() {
+  Widget _buildMapBackground(bool isDarkMode) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFE8F5E9),
-            Color(0xFFC8E6C9), 
-          ],
+          // Если темная тема - глубокий синий градиент, иначе светлый зеленый
+          colors: isDarkMode 
+            ? [const Color(0xFF1A1A2E), const Color(0xFF10101C)] 
+            : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)],
         ),
       ),
       child: Stack(
@@ -205,11 +209,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
+                color: isDarkMode ? Colors.indigo.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: isDarkMode ? Colors.indigo.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                     blurRadius: 100,
                   ),
                 ],
@@ -223,11 +227,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
               width: 400,
               height: 250,
               decoration: BoxDecoration(
-                color: Colors.yellow.withValues(alpha: 0.1),
+                color: isDarkMode ? Colors.purple.withValues(alpha: 0.1) : Colors.yellow.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.yellow.withValues(alpha: 0.1),
+                    color: isDarkMode ? Colors.purple.withValues(alpha: 0.1) : Colors.yellow.withValues(alpha: 0.1),
                     blurRadius: 80,
                   ),
                 ],
@@ -245,6 +249,7 @@ class PathNodeButton extends StatefulWidget {
   final bool isCompleted;
   final bool isCurrent;
   final bool isLocked;
+  final bool isDarkMode; // <-- Добавили этот параметр
   final VoidCallback onTap;
 
   const PathNodeButton({
@@ -253,6 +258,7 @@ class PathNodeButton extends StatefulWidget {
     required this.isCompleted,
     required this.isCurrent,
     required this.isLocked,
+    required this.isDarkMode,
     required this.onTap,
   });
 
@@ -275,8 +281,9 @@ class _PathNodeButtonState extends State<PathNodeButton> {
       primaryColor = const Color(0xFFFFC800);
       shadowColor = const Color(0xFFE5B400);
     } else {
-      primaryColor = const Color(0xFFE5E5E5);
-      shadowColor = const Color(0xFFCECECE);
+      // Темные цвета для заблокированных уровней в ночном режиме
+      primaryColor = widget.isDarkMode ? const Color(0xFF2A2D43) : const Color(0xFFE5E5E5);
+      shadowColor = widget.isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFCECECE);
     }
 
     final double buttonSize = widget.isCurrent ? 85.0 : 70.0;
@@ -351,7 +358,11 @@ class _PathNodeButtonState extends State<PathNodeButton> {
         Icons.water_drop_rounded,
       ];
       final selectedIcon = lockedIcons[widget.levelNumber % lockedIcons.length];
-      return Icon(selectedIcon, color: Colors.grey.shade400, size: 30);
+      return Icon(
+        selectedIcon, 
+        color: widget.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400, 
+        size: 30
+      );
     }
   }
 }

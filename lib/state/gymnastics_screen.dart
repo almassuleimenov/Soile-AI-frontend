@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
-import 'game_screen.dart'; // Наш тренажер, куда мы пойдем в конце
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // <--- ДОБАВИЛИ RIVERPOD
+import 'user_state.dart'; // <--- ДОБАВИЛИ СТЕЙТ
+import 'game_screen.dart'; 
 
-class GymnasticsScreen extends StatefulWidget {
+// Изменили на ConsumerStatefulWidget
+class GymnasticsScreen extends ConsumerStatefulWidget {
   const GymnasticsScreen({super.key});
 
   @override
-  State<GymnasticsScreen> createState() => _GymnasticsScreenState();
+  ConsumerState<GymnasticsScreen> createState() => _GymnasticsScreenState();
 }
 
-class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerProviderStateMixin {
+class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with SingleTickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _animationController;
   int _currentIndex = 0;
 
-  // Данные для наших карточек разминки (заглушки для твоих будущих картинок)
   final List<Map<String, String>> _exercises = [
     {
       'title': 'Жымию жаса',
       'subtitle': 'Тістеріңді көрсетіп, кең жымиыңыз',
       'emoji': '😁',
-      'color': '0xFFE3F2FD', // Нежно-голубой
+      'color': '0xFFE3F2FD', 
     },
     {
       'title': 'Түтікше',
       'subtitle': 'Еріндеріңді алға қарай соз',
       'emoji': '😗',
-      'color': '0xFFFFF9C4', // Нежно-желтый
+      'color': '0xFFFFF9C4', 
     },
     {
       'title': 'Тентек тіл',
       'subtitle': 'Тіліңді шығарып, төмен-жоғары қозғалт',
       'emoji': '😛',
-      'color': '0xFFFCE4EC', // Нежно-кремовый
+      'color': '0xFFFCE4EC', 
     },
   ];
 
@@ -40,33 +42,28 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
     super.initState();
     _pageController = PageController();
     
-    // Таймер на 5 секунд для каждой карточки
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 5),
     );
 
-    // Слушаем окончание анимации, чтобы перелистнуть страницу
     _animationController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _nextPage();
       }
     });
 
-    // Запускаем таймер для первой страницы
     _animationController.forward();
   }
 
   void _nextPage() {
     if (_currentIndex < _exercises.length - 1) {
-      // Идем на следующую страницу
       setState(() => _currentIndex++);
       _pageController.animateToPage(
         _currentIndex,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
-      // Сбрасываем и запускаем таймер заново
       _animationController.reset();
       _animationController.forward();
     }
@@ -81,12 +78,13 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = ref.watch(themeProvider); // <-- СЛУШАЕМ ТЕМУ!
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white, // Адаптивный фон
       body: SafeArea(
         child: Column(
           children: [
-            // 1. ПОЛОСКИ ПРОГРЕССА (КАК В INSTAGRAM)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               child: AnimatedBuilder(
@@ -97,7 +95,7 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: _buildProgressBar(index),
+                          child: _buildProgressBar(index, isDarkMode), // Передали тему
                         ),
                       );
                     }),
@@ -106,31 +104,29 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
               ),
             ),
 
-            // Кнопка закрытия (вернуться на карту)
             Align(
               alignment: Alignment.centerRight,
               child: IconButton(
-                icon: const Icon(Icons.close_rounded, size: 30, color: Colors.grey),
+                icon: Icon(Icons.close_rounded, size: 30, color: isDarkMode ? Colors.white70 : Colors.grey),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
 
-            // 2. КАРТОЧКИ УПРАЖНЕНИЙ (СВАЙПАЮТСЯ)
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(), // Блокируем ручной свайп, листает только таймер
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: _exercises.length,
                 itemBuilder: (context, index) {
                   final data = _exercises[index];
-                  final color = Color(int.parse(data['color']!));
+                  // В темной теме круги делаем чуть прозрачнее, чтобы не били по глазам
+                  final color = Color(int.parse(data['color']!)).withValues(alpha: isDarkMode ? 0.8 : 1.0);
 
                   return Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Место для будущей картинки (пока цветной круг с эмодзи)
                         Container(
                           width: 250,
                           height: 250,
@@ -149,10 +145,10 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
                         Text(
                           data['title']!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D3436),
+                            color: isDarkMode ? Colors.white : const Color(0xFF2D3436), // Адаптивный текст
                           ),
                         ),
                         const SizedBox(height: 15),
@@ -161,7 +157,7 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey.shade600,
+                            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600, // Адаптивный подзаголовок
                             height: 1.5,
                           ),
                         ),
@@ -172,18 +168,14 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
               ),
             ),
 
-            // 3. КНОПКА "ИГРАТЬ" (ПОЯВЛЯЕТСЯ В САМОМ КОНЦЕ)
             Padding(
               padding: const EdgeInsets.all(30.0),
               child: AnimatedOpacity(
-                // Показываем кнопку только на последнем слайде, когда таймер почти дошел
                 opacity: _currentIndex == _exercises.length - 1 ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
                 child: GestureDetector(
                   onTap: () {
                     if (_currentIndex == _exercises.length - 1) {
-                      // Переходим в саму Игру! Используем pushReplacement, 
-                      // чтобы убрать разминку из истории (кнопка "назад" в игре вернет сразу на карту)
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const GameScreen()),
@@ -225,22 +217,21 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
     );
   }
 
-  // Логика отрисовки одной полоски таймера
-  Widget _buildProgressBar(int index) {
+  Widget _buildProgressBar(int index, bool isDarkMode) {
     double fillAmount = 0.0;
 
     if (index < _currentIndex) {
-      fillAmount = 1.0; // Пройденные слайды заполнены на 100%
+      fillAmount = 1.0; 
     } else if (index == _currentIndex) {
-      fillAmount = _animationController.value; // Текущий слайд заполняется
+      fillAmount = _animationController.value; 
     } else {
-      fillAmount = 0.0; // Будущие слайды пустые
+      fillAmount = 0.0; 
     }
 
     return Container(
       height: 6,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.grey.shade300, // Адаптивный фон полоски
         borderRadius: BorderRadius.circular(3),
       ),
       child: FractionallySizedBox(
@@ -248,7 +239,7 @@ class _GymnasticsScreenState extends State<GymnasticsScreen> with SingleTickerPr
         widthFactor: fillAmount,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFFCC00), // Желтая полоска заполнения
+            color: const Color(0xFFFFCC00), 
             borderRadius: BorderRadius.circular(3),
           ),
         ),

@@ -2,21 +2,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'user_state.dart'; // Подключаем наши монетки
+import 'user_state.dart';
 
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
 
-  // СЕНЬОРСКИЙ ПАТТЕРН: Удобный метод для вызова этого экрана поверх других
   static void show(BuildContext context) {
     Navigator.of(context).push(
       PageRouteBuilder(
-        opaque: false, // Делаем фон прозрачным!
-        barrierDismissible: false, // Нельзя закрыть просто кликом по фону
+        opaque: false, 
+        barrierDismissible: false, 
         pageBuilder: (BuildContext context, _, __) {
           return const SuccessScreen();
         },
-        // Добавляем плавное появление (Fade)
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -34,33 +32,32 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
   @override
   void initState() {
     super.initState();
-    // Настраиваем контроллер конфетти (будет стрелять 2 секунды)
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
-    
-    // Запускаем салют сразу при открытии экрана!
     _confettiController.play();
   }
 
   @override
   void dispose() {
-    _confettiController.dispose(); // Обязательно очищаем
+    _confettiController.dispose(); 
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // <-- СЛУШАЕМ ТЕМУ!
+    final isDarkMode = ref.watch(themeProvider); 
+
     return Scaffold(
-      // Полупрозрачный темный фон, чтобы выделить награду
+      // Фон самого экрана оставляем темным полупрозрачным в обоих режимах (это ведь оверлей)
       backgroundColor: Colors.black.withValues(alpha: 0.6),
       body: Stack(
         alignment: Alignment.center,
         children: [
-          // 1. КОНФЕТТИ (стреляет из центра во все стороны)
           Align(
             alignment: Alignment.center,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirectionality: BlastDirectionality.explosive, // Взрыв во все стороны
+              blastDirectionality: BlastDirectionality.explosive, 
               shouldLoop: false,
               colors: const [
                 Colors.green,
@@ -69,15 +66,14 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                 Colors.orange,
                 Colors.purple
               ],
-              createParticlePath: drawStar, // Кастомная форма звездочек!
+              createParticlePath: drawStar, 
             ),
           ),
 
-          // 2. ГЛАВНАЯ КАРТОЧКА С НАГРАДОЙ
           TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.5, end: 1.0), // Анимация увеличения (Pop-up)
+            tween: Tween(begin: 0.5, end: 1.0), 
             duration: const Duration(milliseconds: 500),
-            curve: Curves.elasticOut, // Пружинистый эффект
+            curve: Curves.elasticOut, 
             builder: (context, scale, child) {
               return Transform.scale(
                 scale: scale,
@@ -88,7 +84,8 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
               width: 300,
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                color: Colors.white,
+                // АДАПТИВНЫЙ ФОН КАРТОЧКИ
+                color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
                 borderRadius: BorderRadius.circular(40),
                 boxShadow: [
                   BoxShadow(
@@ -101,23 +98,21 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Маскот (Капибара)
                   const Text('🦸‍♂️🦫', style: TextStyle(fontSize: 80)),
                   const SizedBox(height: 20),
                   
-                  // Текст успеха
-                  const Text(
+                  Text(
                     'УМНИЦА!',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF2D3436),
+                      // АДАПТИВНЫЙ ТЕКСТ
+                      color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
                       letterSpacing: 2.0,
                     ),
                   ),
                   const SizedBox(height: 10),
                   
-                  // Награда
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -128,20 +123,17 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
+                          // В темной теме делаем синий чуть светлее для контраста
+                          color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 30),
                   
-                  // Кнопка "Дальше"
                   GestureDetector(
                     onTap: () {
-                      // 1. ДОБАВЛЯЕМ МОНЕТЫ ЧЕРЕЗ RIVERPOD
                       ref.read(userProvider.notifier).addCoins(10);
-                      
-                      // 2. ЗАКРЫВАЕМ ЭКРАН НАГРАДЫ
                       Navigator.of(context).pop();
                     },
                     child: Container(
@@ -162,7 +154,7 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                         child: Text(
                           'ДАЛЬШЕ',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.white, // Желтая кнопка всегда с белым текстом
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.5,
@@ -180,7 +172,6 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
     );
   }
 
-  // Небольшая функция для отрисовки конфетти в форме звездочек
   Path drawStar(Size size) {
     double degToRad(double deg) => deg * (pi / 180.0);
     const numberOfPoints = 5;

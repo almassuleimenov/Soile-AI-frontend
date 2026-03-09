@@ -10,10 +10,8 @@ class ShopScreen extends ConsumerStatefulWidget {
 }
 
 class _ShopScreenState extends ConsumerState<ShopScreen> {
-  // Локальный список купленных скинов (для презентации этого хватит)
   final Set<int> _purchasedItems = {};
 
-  // Наши товары-заглушки (Стикеры)
   final List<Map<String, dynamic>> _shopItems = [
     {'name': 'Ковбой', 'emoji': '🤠', 'price': 50, 'color': 0xFFFFF3E0},
     {'name': 'Ниндзя', 'emoji': '🥷', 'price': 100, 'color': 0xFFECEFF1},
@@ -26,19 +24,18 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
+    final isDarkMode = ref.watch(themeProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA),
       body: SafeArea(
-        bottom: false, // Отключаем отступ снизу, чтобы список уходил под Navbar
+        bottom: false, 
         child: Column(
           children: [
-            // 1. ВЕРХНЯЯ ПАНЕЛЬ (Такая же, как на карте, чтобы был единый стиль)
-            _buildTopBar(userData.coins),
+            _buildTopBar(userData.coins, isDarkMode),
 
-            // 2. ЗАГОЛОВОК МАГАЗИНА
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -46,22 +43,23 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF2D3436),
+                    color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
+                    // Пакет Google Fonts автоматически подхватит шрифт Nunito, 
+                    // так как мы задали его в теме. Явно указывать fontfamily не нужно.
                   ),
                 ),
               ),
             ),
 
-            // 3. СЕТКА ТОВАРОВ
             Expanded(
               child: GridView.builder(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120), // Отступ снизу для Navbar
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 120),
                 physics: const BouncingScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, // 2 колонки
-                  childAspectRatio: 0.75, // Карточки чуть вытянуты по вертикали
-                  crossAxisSpacing: 15, // Расстояние между колонками
-                  mainAxisSpacing: 20, // Расстояние между рядами
+                  crossAxisCount: 2, 
+                  childAspectRatio: 0.75, 
+                  crossAxisSpacing: 15, 
+                  mainAxisSpacing: 20, 
                 ),
                 itemCount: _shopItems.length,
                 itemBuilder: (context, index) {
@@ -74,6 +72,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     item: item,
                     isPurchased: isPurchased,
                     canAfford: canAfford,
+                    isDarkMode: isDarkMode,
                   );
                 },
               ),
@@ -84,16 +83,16 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 
-  // --- КАРТОЧКА ТОВАРА ---
   Widget _buildShopCard({
     required int index,
     required Map<String, dynamic> item,
     required bool isPurchased,
     required bool canAfford,
+    required bool isDarkMode,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
@@ -106,48 +105,44 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Цветной фон со стикером
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Color(item['color']),
+                color: Color(item['color']).withValues(alpha: isDarkMode ? 0.8 : 1.0),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: Center(
+                // --- ШАГ 3: УВЕЛИЧИВАЕМ РАЗМЕР ЭМОДЗИ/СТИКЕРА НА 40%+ ---
                 child: Text(
                   item['emoji'],
-                  style: const TextStyle(fontSize: 60),
+                  style: const TextStyle(fontSize: 90), // <--- БЫЛО 60, СТАЛО 90!
                 ),
               ),
             ),
           ),
           
-          // Информация и кнопка
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
                 Text(
                   item['name'],
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: 18, // Чуть увеличили имя, шрифт Nunito позволяет
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3436),
+                    color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
                   ),
                 ),
                 const SizedBox(height: 8),
                 
-                // КНОПКА ПОКУПКИ
                 GestureDetector(
                   onTap: () {
-                    if (isPurchased) return; // Уже куплено
+                    if (isPurchased) return; 
 
                     if (canAfford) {
-                      // ПОКУПАЕМ!
                       setState(() {
                         _purchasedItems.add(index);
                       });
-                      // Отнимаем монеты (передаем отрицательное значение)
                       ref.read(userProvider.notifier).addCoins(-item['price']);
                       
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -159,7 +154,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                         ),
                       );
                     } else {
-                      // НЕ ХВАТАЕТ ДЕНЕГ
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Text('Не хватает монеток! Пройди уровни 💎'),
@@ -174,15 +168,16 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      // Серый, если не хватает денег. Желтый, если можно купить. Зеленый, если куплено.
                       color: isPurchased 
-                          ? Colors.green.shade100 
-                          : (canAfford ? const Color(0xFFFFCC00) : Colors.grey.shade200),
+                          ? (isDarkMode ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade100) 
+                          : (canAfford 
+                              ? const Color(0xFFFFCC00) 
+                              : (isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey.shade200)),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: Center(
                       child: isPurchased 
-                        ? const Text('Куплено', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+                        ? Text('Куплено', style: TextStyle(color: isDarkMode ? Colors.greenAccent : Colors.green, fontWeight: FontWeight.bold))
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -190,7 +185,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                                 '${item['price']}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: canAfford ? Colors.white : Colors.grey.shade600,
+                                  color: canAfford ? Colors.white : Colors.grey.shade500,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -212,13 +207,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 
-  // --- ВЕРХНЯЯ ПАНЕЛЬ (Как на Карте) ---
-  Widget _buildTopBar(int coins) {
+  Widget _buildTopBar(int coins, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -232,20 +226,19 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           CircleAvatar(
-            backgroundColor: Colors.grey.shade100,
+            backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey.shade100,
             child: const Text('🦫', style: TextStyle(fontSize: 20)),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FD),
+              color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               children: [
                 const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
                 const SizedBox(width: 8),
-                // Добавили анимацию счетчика, чтобы цифры красиво менялись!
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder: (Widget child, Animation<double> animation) {
@@ -253,9 +246,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                   },
                   child: Text(
                     '$coins',
-                    key: ValueKey<int>(coins), // Ключ нужен для перерисовки
-                    style: const TextStyle(
-                      color: Colors.blueAccent,
+                    key: ValueKey<int>(coins), 
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),

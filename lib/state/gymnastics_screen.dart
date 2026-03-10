@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // <--- ДОБАВИЛИ RIVERPOD
-import 'user_state.dart'; // <--- ДОБАВИЛИ СТЕЙТ
-import 'game_screen.dart'; 
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'user_state.dart';
 
-// Изменили на ConsumerStatefulWidget
 class GymnasticsScreen extends ConsumerStatefulWidget {
-  const GymnasticsScreen({super.key});
+  final Widget nextScreen;
+
+  const GymnasticsScreen({
+    super.key,
+    required this.nextScreen,
+  });
 
   @override
   ConsumerState<GymnasticsScreen> createState() => _GymnasticsScreenState();
@@ -57,16 +61,55 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
   }
 
   void _nextPage() {
+    HapticFeedback.lightImpact();
     if (_currentIndex < _exercises.length - 1) {
       setState(() => _currentIndex++);
       _pageController.animateToPage(
         _currentIndex,
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _animationController.reset();
-      _animationController.forward();
+      _animationController.forward(from: 0.0);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => widget.nextScreen),
+      );
     }
+  }
+
+  void _previousPage() {
+    HapticFeedback.lightImpact();
+    if (_currentIndex > 0) {
+      setState(() => _currentIndex--);
+      _pageController.animateToPage(
+        _currentIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      _animationController.forward(from: 0.0);
+    } else {
+      _animationController.forward(from: 0.0);
+    }
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    _animationController.stop();
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double dx = details.globalPosition.dx;
+
+    if (dx < screenWidth / 3) {
+      _previousPage();
+    } else {
+      _nextPage();
+    }
+  }
+
+  void _onTapCancel() {
+    _animationController.forward();
   }
 
   @override
@@ -78,10 +121,10 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = ref.watch(themeProvider); // <-- СЛУШАЕМ ТЕМУ!
+    final isDarkMode = ref.watch(themeProvider); 
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white, // Адаптивный фон
+      backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -95,7 +138,7 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: _buildProgressBar(index, isDarkMode), // Передали тему
+                          child: _buildProgressBar(index, isDarkMode),
                         ),
                       );
                     }),
@@ -113,58 +156,63 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
             ),
 
             Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _exercises.length,
-                itemBuilder: (context, index) {
-                  final data = _exercises[index];
-                  // В темной теме круги делаем чуть прозрачнее, чтобы не били по глазам
-                  final color = Color(int.parse(data['color']!)).withValues(alpha: isDarkMode ? 0.8 : 1.0);
+              child: GestureDetector(
+                onTapDown: _onTapDown,
+                onTapUp: _onTapUp,
+                onTapCancel: _onTapCancel,
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _exercises.length,
+                  itemBuilder: (context, index) {
+                    final data = _exercises[index];
+                    final color = Color(int.parse(data['color']!)).withValues(alpha: isDarkMode ? 0.8 : 1.0);
 
-                  return Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 250,
-                          height: 250,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              data['emoji']!,
-                              style: const TextStyle(fontSize: 100),
+                    return Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 250,
+                            height: 250,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                data['emoji']!,
+                                style: const TextStyle(fontSize: 100),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 50),
-                        Text(
-                          data['title']!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : const Color(0xFF2D3436), // Адаптивный текст
+                          const SizedBox(height: 50),
+                          Text(
+                            data['title']!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 15),
-                        Text(
-                          data['subtitle']!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600, // Адаптивный подзаголовок
-                            height: 1.5,
+                          const SizedBox(height: 15),
+                          Text(
+                            data['subtitle']!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                              height: 1.5,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
 
@@ -178,7 +226,7 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                     if (_currentIndex == _exercises.length - 1) {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const GameScreen()),
+                        MaterialPageRoute(builder: (context) => widget.nextScreen),
                       );
                     }
                   },
@@ -231,7 +279,7 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
     return Container(
       height: 6,
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.grey.shade300, // Адаптивный фон полоски
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(3),
       ),
       child: FractionallySizedBox(

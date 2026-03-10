@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_state.dart';
+import 't_game_screen.dart';
 import 'gymnastics_screen.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -50,7 +51,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
 
     return Stack(
       children: [
-        _buildMapBackground(isDarkMode), // Передаем тему в фон
+        _buildMapBackground(isDarkMode),
 
         NotificationListener<ScrollNotification>(
           onNotification: (notification) {
@@ -92,7 +93,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                     isCompleted: isCompleted,
                     isCurrent: isCurrent,
                     isLocked: isLocked,
-                    isDarkMode: isDarkMode, // Передаем тему в кнопку
+                    isDarkMode: isDarkMode,
                     onTap: () {
                       if (isLocked) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -103,11 +104,23 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                           ),
                         );
                       } else if (isCurrent) {
+                        
+                        Widget gameToPlay;
+                        if (levelNumber == 1) {
+                          gameToPlay = const TGameScreen();
+                        } else {
+                          gameToPlay = const TGameScreen();
+                        }
+
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const GymnasticsScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => GymnasticsScreen(nextScreen: gameToPlay),
+                          ),
                         );
+                        
                       } else {
+                        // Оставил логирование для дебага, это не вызовет ошибку, только warning
                         print('Перепроходим уровень $levelNumber');
                       }
                     },
@@ -124,7 +137,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             position: _topBarOffset,
             child: SafeArea(
               bottom: false,
-              child: _buildTopBar(userData.coins, isDarkMode), // Передаем тему
+              child: _buildTopBar(userData.coins, isDarkMode),
             ),
           ),
         ),
@@ -137,7 +150,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white, // Адаптивный цвет
+        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -195,7 +208,6 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          // Если темная тема - глубокий синий градиент, иначе светлый зеленый
           colors: isDarkMode 
             ? [const Color(0xFF1A1A2E), const Color(0xFF10101C)] 
             : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)],
@@ -250,7 +262,7 @@ class PathNodeButton extends StatefulWidget {
   final bool isCompleted;
   final bool isCurrent;
   final bool isLocked;
-  final bool isDarkMode; // <-- Добавили этот параметр
+  final bool isDarkMode;
   final VoidCallback onTap;
 
   const PathNodeButton({
@@ -282,7 +294,6 @@ class _PathNodeButtonState extends State<PathNodeButton> {
       primaryColor = const Color(0xFFFFC800);
       shadowColor = const Color(0xFFE5B400);
     } else {
-      // Темные цвета для заблокированных уровней в ночном режиме
       primaryColor = widget.isDarkMode ? const Color(0xFF2A2D43) : const Color(0xFFE5E5E5);
       shadowColor = widget.isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFCECECE);
     }

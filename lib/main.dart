@@ -6,6 +6,7 @@ import 'state/map_screen.dart';
 import 'state/shop_screen.dart';
 import 'state/profile_screen.dart';
 import 'state/user_state.dart';
+import 'state/splash_screen.dart'; // <--- ДОБАВЬ ЭТОТ ИМПОРТ
 
 void main() {
   runApp(const ProviderScope(child: CapybaraApp()));
@@ -46,7 +47,7 @@ class CapybaraApp extends ConsumerWidget {
           ThemeData.dark().textTheme, // Берем стандартные размеры для темной темы
         ),
       ),
-      home: const MainScreen(),
+      home: const SplashScreen(),
     );
   }
 }

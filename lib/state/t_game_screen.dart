@@ -146,6 +146,8 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
+    final isKz = ref.watch(languageProvider) == 'kz'; // Читаем язык из провайдера
+
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
     final groundColor = isDarkMode ? const Color(0xFF2A2D43) : Colors.grey.shade300;
@@ -159,12 +161,12 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
               children: [
                 const SizedBox(height: 40),
                 Text(
-                  'Айт: Т - Т - Т',
+                  isKz ? 'Айт: Т - Т - Т' : 'Скажи: Т - Т - Т', // Перевод
                   style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: textColor),
                 ),
                 Text(
-                  'Ұпай: $_score / $_targetScore',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFFFFCC00)),
+                  isKz ? 'Ұпай: $_score / $_targetScore' : 'Счет: $_score / $_targetScore', // Перевод
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFFFCC00)),
                 ),
                 const Spacer(),
                 SizedBox(
@@ -210,13 +212,19 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
                         color: const Color(0xFFFFCC00),
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: const Text('БАСТАУ', style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        isKz ? 'БАСТАУ' : 'НАЧАТЬ', // Перевод
+                        style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)
+                      ),
                     ),
                   ),
                 if (_isGameOver)
                   Column(
                     children: [
-                      const Text('Ой, тиіп кетті!', style: TextStyle(fontSize: 24, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      Text(
+                        isKz ? 'Ой, тиіп кетті!' : 'Ой, задели!', // Перевод
+                        style: const TextStyle(fontSize: 24, color: Colors.redAccent, fontWeight: FontWeight.bold)
+                      ),
                       const SizedBox(height: 10),
                       GestureDetector(
                         onTap: _startGame,
@@ -226,7 +234,10 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
                             color: const Color(0xFFFFCC00),
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          child: const Text('ҚАЙТАДАН', style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            isKz ? 'ҚАЙТАДАН' : 'ЗАНОВО', // Перевод
+                            style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)
+                          ),
                         ),
                       ),
                     ],

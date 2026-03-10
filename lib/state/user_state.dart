@@ -6,13 +6,16 @@ import 'package:http/http.dart' as http;
 class UserData {
   final int coins;
   final int currentLevel;
+  final int streakDays; // <-- НОВОЕ: Дни подряд (стрик)
 
-  UserData({this.coins = 0, this.currentLevel = 1});
+  // Добавили streakDays со значением 3 по умолчанию
+  UserData({this.coins = 0, this.currentLevel = 1, this.streakDays = 3});
 
-  UserData copyWith({int? coins, int? currentLevel}) {
+  UserData copyWith({int? coins, int? currentLevel, int? streakDays}) {
     return UserData(
       coins: coins ?? this.coins,
       currentLevel: currentLevel ?? this.currentLevel,
+      streakDays: streakDays ?? this.streakDays, // <-- Добавили в копирование
     );
   }
 }
@@ -23,7 +26,7 @@ class UserNotifier extends Notifier<UserData> {
   @override
   UserData build() {
     fetchUserData();
-    return UserData(coins: 0, currentLevel: 1);
+    return UserData(coins: 0, currentLevel: 1, streakDays: 3); // <-- Обновили начальное состояние
   }
 
   Future<void> fetchUserData() async {
@@ -34,6 +37,8 @@ class UserNotifier extends Notifier<UserData> {
         state = state.copyWith(
           coins: data['coins'],
           currentLevel: data['current_level'],
+          // Когда бэкенд научится отдавать дни, можно будет раскомментировать эту строку:
+          // streakDays: data['streak_days'],
         );
       }
     } catch (e) {
@@ -76,3 +81,5 @@ final userProvider = NotifierProvider<UserNotifier, UserData>(() {
 });
 
 final themeProvider = StateProvider<bool>((ref) => false);
+
+final languageProvider = StateProvider<String>((ref) => 'kz');

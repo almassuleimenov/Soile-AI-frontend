@@ -7,6 +7,7 @@ import 'state/shop_screen.dart';
 import 'state/profile_screen.dart';
 import 'state/user_state.dart';
 import 'state/splash_screen.dart'; // <--- ДОБАВЬ ЭТОТ ИМПОРТ
+import 'state/ai_chat_screen.dart'; // <--- ДОБАВЬ ЭТОТ ИМПОРТ
 
 void main() {
   runApp(const ProviderScope(child: CapybaraApp()));
@@ -65,6 +66,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final List<Widget> _screens = [
     const MapScreen(),
     const ShopScreen(),
+    const AiChatScreen(),
     const ProfileScreen(),
   ];
 
@@ -89,7 +91,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         items: [
           Icon(Icons.map_rounded, size: 30, color: _currentIndex == 0 ? Colors.white : Colors.grey.shade400),
           Icon(Icons.storefront_rounded, size: 30, color: _currentIndex == 1 ? Colors.white : Colors.grey.shade400),
-          Icon(Icons.person_rounded, size: 30, color: _currentIndex == 2 ? Colors.white : Colors.grey.shade400),
+          Icon(Icons.smart_toy_rounded, size: 30, color: _currentIndex == 2 ? Colors.white : Colors.grey.shade400),
+          Icon(Icons.person_rounded, size: 30, color: _currentIndex == 3 ? Colors.white : Colors.grey.shade400),
         ],
         onTap: (index) {
           setState(() {

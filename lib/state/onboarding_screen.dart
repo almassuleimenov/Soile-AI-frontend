@@ -71,6 +71,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
+    final isKz = ref.watch(languageProvider) == 'kz'; // Читаем выбранный язык
+
     final bgColor = isDarkMode ? const Color(0xFF090A0F) : const Color(0xFFFDFDFD);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
     final subTextColor = isDarkMode ? Colors.white54 : const Color(0xFF6B7280);
@@ -113,20 +115,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           SafeArea(
             child: Column(
               children: [
-                _buildTopNavigation(isDarkMode, textColor),
+                _buildTopNavigation(isDarkMode, textColor, isKz),
                 Expanded(
                   child: PageView(
                     controller: _pageController,
                     physics: const NeverScrollableScrollPhysics(), // Блокируем свайп, чтобы заставить жать кнопки
                     onPageChanged: (index) => setState(() => _currentPage = index),
                     children: [
-                      _buildGenderPage(textColor, subTextColor, isDarkMode),
-                      _buildAgePage(textColor, subTextColor, isDarkMode),
-                      _buildGoalPage(textColor, subTextColor, isDarkMode),
+                      _buildGenderPage(textColor, subTextColor, isDarkMode, isKz),
+                      _buildAgePage(textColor, subTextColor, isDarkMode, isKz),
+                      _buildGoalPage(textColor, subTextColor, isDarkMode, isKz),
                     ],
                   ),
                 ),
-                _buildBottomButton(isDarkMode),
+                _buildBottomButton(isDarkMode, isKz),
               ],
             ),
           ),
@@ -135,7 +137,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildTopNavigation(bool isDarkMode, Color textColor) {
+  Widget _buildTopNavigation(bool isDarkMode, Color textColor, bool isKz) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Row(
@@ -187,7 +189,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
                 child: Text(
-                  'Өткізу',
+                  isKz ? 'Өткізу' : 'Пропустить', // Перевод
                   style: GoogleFonts.outfit(
                     color: isDarkMode ? Colors.white30 : Colors.black38,
                     fontWeight: FontWeight.w500,
@@ -231,18 +233,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildGenderPage(Color textColor, Color subTextColor, bool isDarkMode) {
+  Widget _buildGenderPage(Color textColor, Color subTextColor, bool isDarkMode, bool isKz) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildHeader('Баланың жынысын\nкөрсетіңіз', 'Soile AI оқуды жекелендіреді', textColor, subTextColor),
+          _buildHeader(
+            isKz ? 'Баланың жынысын\nкөрсетіңіз' : 'Укажите пол\nребенка',
+            isKz ? 'Soile AI оқуды жекелендіреді' : 'Soile AI персонализирует обучение',
+            textColor,
+            subTextColor
+          ),
           Row(
             children: [
-              Expanded(child: _buildGenderCard(0, '👦', 'Ұл', isDarkMode, textColor)),
+              Expanded(child: _buildGenderCard(0, '👦', isKz ? 'Ұл' : 'Мальчик', isDarkMode, textColor)),
               const SizedBox(width: 16),
-              Expanded(child: _buildGenderCard(1, '👧', 'Қыз', isDarkMode, textColor)),
+              Expanded(child: _buildGenderCard(1, '👧', isKz ? 'Қыз' : 'Девочка', isDarkMode, textColor)),
             ],
           )
         ],
@@ -311,13 +318,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildAgePage(Color textColor, Color subTextColor, bool isDarkMode) {
+  Widget _buildAgePage(Color textColor, Color subTextColor, bool isDarkMode, bool isKz) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildHeader('Балаңыз неше жаста?', 'Жасына сай тапсырмалар таңдаймыз', textColor, subTextColor),
+          _buildHeader(
+            isKz ? 'Балаңыз неше жаста?' : 'Сколько лет вашему ребенку?', 
+            isKz ? 'Жасына сай тапсырмалар таңдаймыз' : 'Подберем задания по возрасту', 
+            textColor, 
+            subTextColor
+          ),
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -364,12 +376,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildGoalPage(Color textColor, Color subTextColor, bool isDarkMode) {
-    final goals = [
+  Widget _buildGoalPage(Color textColor, Color subTextColor, bool isDarkMode, bool isKz) {
+    // Список целей меняется в зависимости от языка
+    final goals = isKz ? [
       {'icon': '🗣️', 'title': 'Сөйлеуді бастау'},
       {'icon': '📈', 'title': 'Сөйлеуді дамыту'},
       {'icon': '🎓', 'title': 'Мектепке дайындалу'},
       {'icon': '🧩', 'title': 'Логиканы дамыту'},
+    ] : [
+      {'icon': '🗣️', 'title': 'Начать говорить'},
+      {'icon': '📈', 'title': 'Развивать речь'},
+      {'icon': '🎓', 'title': 'Подготовка к школе'},
+      {'icon': '🧩', 'title': 'Развитие логики'},
     ];
 
     return Padding(
@@ -377,7 +395,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildHeader('Қандай нәтиже күтесіз?', 'Жеке оқу бағдарламасын құрастырамыз', textColor, subTextColor),
+          _buildHeader(
+            isKz ? 'Қандай нәтиже күтесіз?' : 'Какой результат вы ждете?', 
+            isKz ? 'Жеке оқу бағдарламасын құрастырамыз' : 'Составим личную программу обучения', 
+            textColor, 
+            subTextColor
+          ),
           ...List.generate(goals.length, (index) {
             final isSelected = _selectedGoal == index;
             final cardBg = isDarkMode ? const Color(0xFF151720) : Colors.white;
@@ -437,7 +460,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _buildBottomButton(bool isDarkMode) {
+  Widget _buildBottomButton(bool isDarkMode, bool isKz) {
+    String buttonText = _currentPage == _totalPages - 1 
+      ? (isKz ? 'Бастау' : 'Начать') 
+      : (isKz ? 'Жалғастыру' : 'Продолжить');
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       child: _BouncyButton(
@@ -460,7 +487,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           child: Center(
             child: Text(
-              _currentPage == _totalPages - 1 ? 'Бастау' : 'Жалғастыру',
+              buttonText,
               style: GoogleFonts.outfit(
                 color: _canProceed ? Colors.white : (isDarkMode ? Colors.white30 : const Color(0xFF9CA3AF)),
                 fontSize: 18,

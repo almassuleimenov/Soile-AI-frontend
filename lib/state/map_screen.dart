@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'user_state.dart';
 import 't_game_screen.dart';
 import 'gymnastics_screen.dart';
+import 'a_game_screen.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -45,6 +46,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
+    final isKz = ref.watch(languageProvider) == 'kz'; // Смотрим язык
     
     final currentLevel = userData.currentLevel; 
     final totalLevels = 15;
@@ -73,8 +75,50 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
               parent: AlwaysScrollableScrollPhysics(),
             ),
             padding: const EdgeInsets.only(top: 150, bottom: 120),
-            itemCount: totalLevels,
+            // Увеличиваем itemCount на 1 для блока "Скоро..."
+            itemCount: totalLevels + 1,
             itemBuilder: (context, index) {
+              
+              // --- ЕСЛИ ЭТО ПОСЛЕДНИЙ ЭЛЕМЕНТ (САМЫЙ ВЕРХ КАРТЫ) ---
+              if (index == totalLevels) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 40, top: 20),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🚀', style: TextStyle(fontSize: 24)),
+                          const SizedBox(width: 10),
+                          Text(
+                            isKz ? 'Жақында...' : 'Скоро...',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // --- ОБЫЧНЫЕ УРОВНИ ---
               final levelNumber = index + 1; 
               
               final isCompleted = levelNumber < currentLevel;
@@ -97,19 +141,23 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                     onTap: () {
                       if (isLocked) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Сначала пройди предыдущие уровни! 🔒'),
-                            duration: Duration(seconds: 1),
+                          SnackBar(
+                            // Перевод всплывающего сообщения
+                            content: Text(isKz ? 'Алдымен алдыңғы деңгейлерді өт! 🔒' : 'Сначала пройди предыдущие уровни! 🔒'),
+                            duration: const Duration(seconds: 1),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       } else if (isCurrent) {
                         
                         Widget gameToPlay;
-                        if (levelNumber == 1) {
+                        // --- ИЗМЕНЕНИЕ ЛОГИКИ ЧЕРЕДОВАНИЯ ИГР ---
+                        if (levelNumber % 2 != 0) {
+                          // Если уровень нечетный (1, 3, 5...) - игра TGame
                           gameToPlay = const TGameScreen();
                         } else {
-                          gameToPlay = const TGameScreen();
+                          // Если уровень четный (2, 4, 6...) - игра с шариком AGame
+                          gameToPlay = const AGameScreen();
                         }
 
                         Navigator.push(
@@ -120,8 +168,8 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                         );
                         
                       } else {
-                        // Оставил логирование для дебага, это не вызовет ошибку, только warning
-                        print('Перепроходим уровень $levelNumber');
+                        // Перевод в консоли (для дебага)
+                        print(isKz ? '$levelNumber деңгейді қайта өту' : 'Перепроходим уровень $levelNumber');
                       }
                     },
                   ),
@@ -137,7 +185,8 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             position: _topBarOffset,
             child: SafeArea(
               bottom: false,
-              child: _buildTopBar(userData.coins, isDarkMode),
+              // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ userData
+              child: _buildTopBar(userData, isDarkMode), 
             ),
           ),
         ),
@@ -145,10 +194,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildTopBar(int coins, bool isDarkMode) {
+  // ОБНОВЛЕННЫЙ _buildTopBar ПРИНИМАЕТ UserData
+  Widget _buildTopBar(UserData userData, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15), // чуть уменьшил горизонтальный отступ
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(30),
@@ -167,33 +217,64 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey.shade100,
             child: const Text('🦫', style: TextStyle(fontSize: 20)),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
-                const SizedBox(width: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: Text(
-                    '$coins',
-                    key: ValueKey<int>(coins),
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
+          
+          // НОВАЯ СТРУКТУРА: Огонек и Монетки рядом
+          Row(
+            children: [
+              // --- БЕЙДЖ: ОГОНЕК (Стрик) ---
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFFFF3E0), // Светло-оранжевый
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${userData.streakDays}', // Берем из состояния
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade800,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10), // Отступ между бейджами
+              
+              // --- БЕЙДЖ: МОНЕТКИ ---
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
+                    const SizedBox(width: 5),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return ScaleTransition(scale: animation, child: child);
+                      },
+                      child: Text(
+                        '${userData.coins}',
+                        key: ValueKey<int>(userData.coins),
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

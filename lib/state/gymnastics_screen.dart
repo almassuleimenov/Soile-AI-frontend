@@ -20,26 +20,29 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
   late AnimationController _animationController;
   int _currentIndex = 0;
 
-  final List<Map<String, String>> _exercises = [
-    {
-      'title': 'Жымию жаса',
-      'subtitle': 'Тістеріңді көрсетіп, кең жымиыңыз',
-      'emoji': '😁',
-      'color': '0xFFE3F2FD', 
-    },
-    {
-      'title': 'Түтікше',
-      'subtitle': 'Еріндеріңді алға қарай соз',
-      'emoji': '😗',
-      'color': '0xFFFFF9C4', 
-    },
-    {
-      'title': 'Тентек тіл',
-      'subtitle': 'Тіліңді шығарып, төмен-жоғары қозғалт',
-      'emoji': '😛',
-      'color': '0xFFFCE4EC', 
-    },
-  ];
+  // Превратили список в метод, чтобы он мог принимать текущий язык (isKz)
+  List<Map<String, String>> _getExercises(bool isKz) {
+    return [
+      {
+        'title': isKz ? 'Жымию жаса' : 'Улыбочка',
+        'subtitle': isKz ? 'Тістеріңді көрсетіп, кең жымиыңыз' : 'Покажи зубки и широко улыбнись',
+        'emoji': '😁',
+        'color': '0xFFE3F2FD', 
+      },
+      {
+        'title': isKz ? 'Түтікше' : 'Трубочка',
+        'subtitle': isKz ? 'Еріндеріңді алға қарай соз' : 'Вытяни губы вперед трубочкой',
+        'emoji': '😗',
+        'color': '0xFFFFF9C4', 
+      },
+      {
+        'title': isKz ? 'Тентек тіл' : 'Озорной язычок',
+        'subtitle': isKz ? 'Тіліңді шығарып, төмен-жоғары қозғалт' : 'Высуни язычок и подвигай им вверх-вниз',
+        'emoji': '😛',
+        'color': '0xFFFCE4EC', 
+      },
+    ];
+  }
 
   @override
   void initState() {
@@ -62,7 +65,11 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
 
   void _nextPage() {
     HapticFeedback.lightImpact();
-    if (_currentIndex < _exercises.length - 1) {
+    // Читаем язык напрямую из провайдера для логики
+    final isKz = ref.read(languageProvider) == 'kz';
+    final exercises = _getExercises(isKz);
+
+    if (_currentIndex < exercises.length - 1) {
       setState(() => _currentIndex++);
       _pageController.animateToPage(
         _currentIndex,
@@ -122,6 +129,10 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider); 
+    
+    // Смотрим выбранный язык
+    final isKz = ref.watch(languageProvider) == 'kz';
+    final exercises = _getExercises(isKz);
 
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
@@ -134,7 +145,7 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                 animation: _animationController,
                 builder: (context, child) {
                   return Row(
-                    children: List.generate(_exercises.length, (index) {
+                    children: List.generate(exercises.length, (index) {
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -163,9 +174,9 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                 child: PageView.builder(
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _exercises.length,
+                  itemCount: exercises.length,
                   itemBuilder: (context, index) {
-                    final data = _exercises[index];
+                    final data = exercises[index];
                     final color = Color(int.parse(data['color']!)).withValues(alpha: isDarkMode ? 0.8 : 1.0);
 
                     return Container(
@@ -219,11 +230,11 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
             Padding(
               padding: const EdgeInsets.all(30.0),
               child: AnimatedOpacity(
-                opacity: _currentIndex == _exercises.length - 1 ? 1.0 : 0.0,
+                opacity: _currentIndex == exercises.length - 1 ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
                 child: GestureDetector(
                   onTap: () {
-                    if (_currentIndex == _exercises.length - 1) {
+                    if (_currentIndex == exercises.length - 1) {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => widget.nextScreen),
@@ -244,10 +255,10 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                         ),
                       ],
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
-                        'ОЙНАУ! 🚀',
-                        style: TextStyle(
+                        isKz ? 'ОЙНАУ! 🚀' : 'ИГРАТЬ! 🚀', // Меняем текст кнопки
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.w900,

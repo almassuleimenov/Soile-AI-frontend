@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +20,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   List<dynamic> _shopItems = [];
   bool _isLoading = true;
 
+  // Ключ для счетчика монет, чтобы мы знали, куда должны лететь алмазы!
+  final GlobalKey _coinCounterKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -30,7 +34,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/shop/skins'));
       if (response.statusCode == 200) {
-        // Декодируем JSON, используя utf8, чтобы эмодзи отображались правильно
         final decodedData = jsonDecode(utf8.decode(response.bodyBytes));
         setState(() {
           _shopItems = decodedData;
@@ -38,14 +41,52 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         });
       }
     } catch (e) {
-      print('Ошибка загрузки магазина: $e');
+      final isKz = ref.read(languageProvider) == 'kz';
+      print(isKz ? 'Дүкенді жүктеу қатесі: $e' : 'Ошибка загрузки магазина: $e');
       setState(() => _isLoading = false);
     }
   }
 
+  // Анимация вылетающих монеток
+  void _spawnFlyingCoins(Offset startPosition) {
+    // Находим координаты нашего счетчика монет в шапке
+    final RenderBox? targetBox = _coinCounterKey.currentContext?.findRenderObject() as RenderBox?;
+    if (targetBox == null) return;
+    
+    final targetPosition = targetBox.localToGlobal(Offset.zero);
+    final random = Random();
+
+    // Создаем "горсть" из 5 алмазиков
+    for (int i = 0; i < 5; i++) {
+      Future.delayed(Duration(milliseconds: i * 80), () {
+        if (!mounted) return;
+        
+        // Легкий разброс на старте, чтобы они не летели одной линией
+        final randomOffset = Offset(
+          startPosition.dx - 30 + random.nextInt(60), 
+          startPosition.dy - 30 + random.nextInt(60),
+        );
+
+        late OverlayEntry entry;
+        entry = OverlayEntry(
+          builder: (context) => _FlyingCoin(
+            start: randomOffset,
+            end: targetPosition,
+            onComplete: () {
+              entry.remove(); // Удаляем алмаз после завершения полета
+            },
+          ),
+        );
+        Overlay.of(context).insert(entry);
+      });
+    }
+  }
+
   // Функция для покупки скина на бэкенде
-  Future<void> _buySkin(int index, Map<String, dynamic> item) async {
+  // ТЕПЕРЬ ПРИНИМАЕТ tapPosition (координаты нажатия)
+  Future<void> _buySkin(int index, Map<String, dynamic> item, Offset tapPosition) async {
     final userData = ref.read(userProvider);
+    final isKz = ref.read(languageProvider) == 'kz'; 
     
     if (_purchasedItems.contains(index)) return; 
 
@@ -57,13 +98,19 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           setState(() {
             _purchasedItems.add(index);
           });
-          // Списываем монеты локально, чтобы цифра в шапке обновилась моментально
-          ref.read(userProvider.notifier).addCoins(-item['price']);
+
+          // 1. ЗАПУСКАЕМ АНИМАЦИЮ ГОРСТИ АЛМАЗОВ!
+          _spawnFlyingCoins(tapPosition);
+          
+          // 2. Списываем монеты с ЗАДЕРЖКОЙ (чтобы цифра упала в момент прилета алмазов)
+          Future.delayed(const Duration(milliseconds: 700), () {
+            ref.read(userProvider.notifier).addCoins(-item['price']);
+          });
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Ура! Вы купили скин ${item['name']} 🎉'),
+                content: Text(isKz ? 'Алақай! Сіз ${item['name']} скинін сатып алдыңыз 🎉' : 'Ура! Вы купили скин ${item['name']} 🎉'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -71,15 +118,15 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             );
           }
         } else {
-           print('Сервер не разрешил покупку: ${response.body}');
+           print(isKz ? 'Сервер сатып алуға рұқсат бермеді: ${response.body}' : 'Сервер не разрешил покупку: ${response.body}');
         }
       } catch (e) {
-         print('Ошибка покупки: $e');
+         print(isKz ? 'Сатып алу қатесі: $e' : 'Ошибка покупки: $e');
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Не хватает монеток! Пройди уровни 💎'),
+          content: Text(isKz ? 'Тиындар жеткіліксіз! Деңгейлерді өт 💎' : 'Не хватает монеток! Пройди уровни 💎'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -92,6 +139,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
+    final isKz = ref.watch(languageProvider) == 'kz'; 
 
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA),
@@ -99,14 +147,14 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         bottom: false, 
         child: Column(
           children: [
-            _buildTopBar(userData.coins, isDarkMode),
+            _buildTopBar(userData, isDarkMode),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Дүкен (Магазин)',
+                  isKz ? 'Дүкен' : 'Магазин', 
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -117,7 +165,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             ),
 
             Expanded(
-              // Пока грузятся данные, показываем крутилку
               child: _isLoading 
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFCC00)))
                 : GridView.builder(
@@ -141,6 +188,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                         isPurchased: isPurchased,
                         canAfford: canAfford,
                         isDarkMode: isDarkMode,
+                        isKz: isKz,
                       );
                     },
                   ),
@@ -157,6 +205,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     required bool isPurchased,
     required bool canAfford,
     required bool isDarkMode,
+    required bool isKz,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -176,7 +225,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                // Цвет теперь приходит из базы, используем его
                 color: Color(item['color']).withValues(alpha: isDarkMode ? 0.8 : 1.0),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
@@ -194,7 +242,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             child: Column(
               children: [
                 Text(
-                  item['name'],
+                  item['name'], 
                   style: TextStyle(
                     fontSize: 18, 
                     fontWeight: FontWeight.bold,
@@ -203,8 +251,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 ),
                 const SizedBox(height: 8),
                 
+                // ТУТ ВАЖНОЕ ИЗМЕНЕНИЕ: Используем onTapUp, чтобы получить координаты клика
                 GestureDetector(
-                  onTap: () => _buySkin(index, item),
+                  onTapUp: (details) => _buySkin(index, item, details.globalPosition),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -218,7 +267,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     ),
                     child: Center(
                       child: isPurchased 
-                        ? Text('Куплено', style: TextStyle(color: isDarkMode ? Colors.greenAccent : Colors.green, fontWeight: FontWeight.bold))
+                        ? Text(isKz ? 'Сатып алынды' : 'Куплено', style: TextStyle(color: isDarkMode ? Colors.greenAccent : Colors.green, fontWeight: FontWeight.bold))
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -248,10 +297,10 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 
-  Widget _buildTopBar(int coins, bool isDarkMode) {
+  Widget _buildTopBar(UserData userData, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 5),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15), 
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(30),
@@ -270,36 +319,130 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey.shade100,
             child: const Text('🦫', style: TextStyle(fontSize: 20)),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
-                const SizedBox(width: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: Text(
-                    '$coins',
-                    key: ValueKey<int>(coins), 
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFFFF3E0), 
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${userData.streakDays}', 
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade800,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10), 
+              
+              // --- КЛЮЧ _coinCounterKey ПОВЕШЕН СЮДА ---
+              Container(
+                key: _coinCounterKey,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 20),
+                    const SizedBox(width: 5),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return ScaleTransition(scale: animation, child: child);
+                      },
+                      child: Text(
+                        '${userData.coins}',
+                        key: ValueKey<int>(userData.coins), 
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.blue.shade300 : Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+// --- НОВЫЙ КЛАСС: Анимация одной летящей монетки ---
+class _FlyingCoin extends StatefulWidget {
+  final Offset start;
+  final Offset end;
+  final VoidCallback onComplete;
+
+  const _FlyingCoin({required this.start, required this.end, required this.onComplete});
+
+  @override
+  State<_FlyingCoin> createState() => _FlyingCoinState();
+}
+
+class _FlyingCoinState extends State<_FlyingCoin> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _positionAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this, 
+      duration: const Duration(milliseconds: 700), // Время полета
+    );
+    
+    // Анимация позиции (с небольшим красивым отскоком в начале Curves.easeInOutBack)
+    _positionAnimation = Tween<Offset>(begin: widget.start, end: widget.end).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutBack),
+    );
+
+    // В начале алмаз немного увеличивается, а к концу полета уменьшается
+    _scaleAnimation = Tween<double>(begin: 1.5, end: 0.5).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    _controller.forward().then((_) => widget.onComplete());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Positioned(
+          left: _positionAnimation.value.dx,
+          top: _positionAnimation.value.dy,
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: const Material(
+              color: Colors.transparent,
+              child: Icon(Icons.diamond_rounded, color: Colors.blueAccent, size: 30),
+            ),
+          ),
+        );
+      },
     );
   }
 }

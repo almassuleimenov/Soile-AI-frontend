@@ -44,8 +44,9 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // <-- СЛУШАЕМ ТЕМУ!
+    // <-- СЛУШАЕМ ТЕМУ И ЯЗЫК!
     final isDarkMode = ref.watch(themeProvider); 
+    final isKz = ref.watch(languageProvider) == 'kz';
 
     return Scaffold(
       // Фон самого экрана оставляем темным полупрозрачным в обоих режимах (это ведь оверлей)
@@ -102,7 +103,7 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                   const SizedBox(height: 20),
                   
                   Text(
-                    'УМНИЦА!',
+                    isKz ? 'ЖАРАЙСЫҢ!' : 'УМНИЦА!', // Перевод текста
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
@@ -151,10 +152,10 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'ДАЛЬШЕ',
-                          style: TextStyle(
+                          isKz ? 'АРЫ ҚАРАЙ' : 'ДАЛЬШЕ', // Перевод кнопки
+                          style: const TextStyle(
                             color: Colors.white, // Желтая кнопка всегда с белым текстом
                             fontSize: 20,
                             fontWeight: FontWeight.w900,

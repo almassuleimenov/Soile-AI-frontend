@@ -1,20 +1,21 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart'; // Требует: flutter pub add intl
 import 'user_state.dart';
 
 class ParentDashboardScreen extends ConsumerStatefulWidget {
   const ParentDashboardScreen({super.key});
 
-  // Специальный метод для вызова экрана через "Детский замок"
   static void showProtected(BuildContext context, WidgetRef ref) {
     final isKz = ref.read(languageProvider) == 'kz';
     final isDarkMode = ref.read(themeProvider);
     
-    // Генерируем простой пример (умножение до 5x5 или сложение)
     final random = Random();
-    final num1 = random.nextInt(4) + 2; // от 2 до 5
-    final num2 = random.nextInt(4) + 2; // от 2 до 5
+    final num1 = random.nextInt(4) + 2; 
+    final num2 = random.nextInt(4) + 2; 
     final answer = num1 * num2;
 
     final TextEditingController answerController = TextEditingController();
@@ -76,6 +77,7 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
                 style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
             ),
+            // ИСПРАВЛЕНА ОПЕЧАТКА: ElevatedButton вместо ElevButton
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFCC00),
@@ -84,13 +86,12 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
               ),
               onPressed: () {
                 if (answerController.text.trim() == answer.toString()) {
-                  Navigator.pop(context); // Закрываем диалог
+                  Navigator.pop(context); 
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const ParentDashboardScreen()),
                   );
                 } else {
-                  // Если ответ неверный, просто очищаем поле
                   answerController.clear();
                 }
               },
@@ -110,8 +111,58 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
-  // Фейковые данные для графика (минуты, проведенные в приложении за последние 7 дней)
-  final List<int> _weeklyMinutes = [15, 30, 10, 45, 20, 50, 35];
+  bool _isLoading = true;
+  Map<String, dynamic>? _analyticsData;
+  final String baseUrl = 'https://capybara-api-0cte.onrender.com';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAnalytics();
+  }
+
+  Future<void> _fetchAnalytics() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/users/analytics'));
+      if (response.statusCode == 200) {
+        setState(() {
+          _analyticsData = jsonDecode(utf8.decode(response.bodyBytes));
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Ошибка загрузки аналитики: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatTime(String isoString, bool isKz) {
+    final date = DateTime.parse(isoString).toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    
+    final timeFormat = DateFormat('HH:mm').format(date);
+    
+    if (diff.inDays == 0 && now.day == date.day) {
+      return isKz ? 'Бүгін, $timeFormat' : 'Сегодня, $timeFormat';
+    } else if (diff.inDays == 1 || (diff.inDays == 0 && now.day != date.day)) {
+      return isKz ? 'Кеше, $timeFormat' : 'Вчера, $timeFormat';
+    } else {
+      final dateFormat = DateFormat('dd.MM').format(date);
+      return '$dateFormat, $timeFormat';
+    }
+  }
+
+  String _formatTotalMinutes(int totalMinutes, bool isKz) {
+    if (totalMinutes < 60) {
+      // ИСПРАВЛЕНА ИНТЕРПОЛЯЦИЯ: убраны лишние {}
+      return isKz ? '${totalMinutes}м' : '${totalMinutes}м';
+    }
+    int hours = totalMinutes ~/ 60;
+    int mins = totalMinutes % 60;
+    // ИСПРАВЛЕНА ИНТЕРПОЛЯЦИЯ: убраны лишние {}
+    return isKz ? '${hours}с ${mins}м' : '${hours}ч ${mins}м';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,121 +190,148 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- КРАТКАЯ СВОДКА ---
-            Row(
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFCC00)))
+        : SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    isKz ? 'Оқу уақыты' : 'Время учебы', 
-                    '3с 25м', // Часы и минуты (пока мок)
-                    Icons.timer_rounded, 
-                    Colors.purpleAccent, 
-                    cardColor, 
-                    textColor
+                // --- КРАТКАЯ СВОДКА ---
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        isKz ? 'Оқу уақыты' : 'Время учебы', 
+                        _formatTotalMinutes(_analyticsData?['total_minutes'] ?? 0, isKz), 
+                        Icons.timer_rounded, 
+                        Colors.purpleAccent, 
+                        cardColor, 
+                        textColor
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        isKz ? 'Өтілген деңгейлер' : 'Пройдено', 
+                        '${userData.currentLevel > 1 ? userData.currentLevel - 1 : 0}', 
+                        Icons.flag_rounded, 
+                        Colors.green, 
+                        cardColor, 
+                        textColor
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+
+                // --- ГРАФИК АКТИВНОСТИ ---
+                Text(
+                  isKz ? 'Апталық белсенділік (минут)' : 'Активность за неделю (минуты)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                ),
+                const SizedBox(height: 15),
+                Container(
+                  height: 220,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (index) {
+                      List<dynamic> weekly = _analyticsData?['weekly_minutes'] ?? [0,0,0,0,0,0,0];
+                      int mins = weekly[index];
+                      
+                      final double maxMin = 50.0;
+                      double heightPercent = mins / maxMin;
+                      if (heightPercent > 1.0) heightPercent = 1.0;
+                      if (heightPercent == 0.0) heightPercent = 0.05; 
+                      
+                      final bool isToday = index == 6; 
+
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$mins',
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: isToday ? Colors.blueAccent : Colors.grey.shade500,
+                              fontWeight: isToday ? FontWeight.bold : FontWeight.normal
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 800),
+                            curve: Curves.easeOutCubic,
+                            width: 25,
+                            height: 120 * heightPercent,
+                            decoration: BoxDecoration(
+                              color: isToday ? Colors.blueAccent : (isDarkMode ? Colors.indigo.withValues(alpha: 0.3) : Colors.blue.shade100),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            days[index],
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: isToday ? Colors.blueAccent : Colors.grey.shade500,
+                              fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
                   ),
                 ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildSummaryCard(
-                    isKz ? 'Өтілген деңгейлер' : 'Пройдено', 
-                    '${userData.currentLevel > 1 ? userData.currentLevel - 1 : 0}', 
-                    Icons.flag_rounded, 
-                    Colors.green, 
-                    cardColor, 
-                    textColor
-                  ),
+                const SizedBox(height: 30),
+
+                // --- ПОСЛЕДНИЕ ДЕЙСТВИЯ ---
+                Text(
+                  isKz ? 'Соңғы әрекеттер' : 'Последние действия',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                 ),
+                const SizedBox(height: 15),
+                
+                if (_analyticsData?['recent_actions'] != null && _analyticsData!['recent_actions'].isNotEmpty)
+                  ...(_analyticsData!['recent_actions'] as List).map((action) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _buildActionRow(
+                        action['emoji'], 
+                        isKz ? action['action_kz'] : action['action_ru'], 
+                        _formatTime(action['created_at'], isKz), 
+                        cardColor, 
+                        textColor, 
+                        isDarkMode
+                      ),
+                    );
+                  })
+                else
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(
+                        isKz ? 'Әзірге ештеңе жоқ 👀' : 'Пока ничего нет 👀',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ),
+                  )
               ],
             ),
-            const SizedBox(height: 30),
-
-            // --- ГРАФИК АКТИВНОСТИ ---
-            Text(
-              isKz ? 'Апталық белсенділік (минут)' : 'Активность за неделю (минуты)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            const SizedBox(height: 15),
-            Container(
-              height: 220,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  )
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: List.generate(7, (index) {
-                  // Высчитываем высоту столбца относительно максимума (50 минут)
-                  final double maxMin = 50.0;
-                  final double heightPercent = _weeklyMinutes[index] / maxMin;
-                  final bool isToday = index == 6; // Считаем, что последний элемент - сегодня
-
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${_weeklyMinutes[index]}',
-                        style: TextStyle(
-                          fontSize: 12, 
-                          color: isToday ? Colors.blueAccent : Colors.grey.shade500,
-                          fontWeight: isToday ? FontWeight.bold : FontWeight.normal
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 800),
-                        curve: Curves.easeOutCubic,
-                        width: 25,
-                        height: 120 * heightPercent,
-                        decoration: BoxDecoration(
-                          color: isToday ? Colors.blueAccent : (isDarkMode ? Colors.indigo.withValues(alpha: 0.3) : Colors.blue.shade100),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        days[index],
-                        style: TextStyle(
-                          fontSize: 12, 
-                          color: isToday ? Colors.blueAccent : Colors.grey.shade500,
-                          fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // --- ПОСЛЕДНИЕ ДЕЙСТВИЯ ---
-            Text(
-              isKz ? 'Соңғы әрекеттер' : 'Последние действия',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            const SizedBox(height: 15),
-            _buildActionRow('🗣️', isKz ? '"Т" дыбысын жаттықтырды' : 'Тренировка звука "Т"', isKz ? 'Бүгін, 14:30' : 'Сегодня, 14:30', cardColor, textColor, isDarkMode),
-            const SizedBox(height: 10),
-            _buildActionRow('😁', isKz ? 'Артикуляциялық гимнастика' : 'Артикуляционная гимнастика', isKz ? 'Кеше, 18:15' : 'Вчера, 18:15', cardColor, textColor, isDarkMode),
-            const SizedBox(height: 10),
-            _buildActionRow('🛒', isKz ? 'Скин сатып алды' : 'Покупка скина в магазине', isKz ? 'Кеше, 18:20' : 'Вчера, 18:20', cardColor, textColor, isDarkMode),
-          ],
-        ),
-      ),
+          ),
     );
   }
 

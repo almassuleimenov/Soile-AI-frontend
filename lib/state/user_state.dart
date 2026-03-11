@@ -1,21 +1,41 @@
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart'; // <--- Добавили для debugPrint
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // <--- Обязательный импорт для StateProvider
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:http/http.dart' as http;
 
 class UserData {
   final int coins;
   final int currentLevel;
-  final int streakDays; // <-- НОВОЕ: Дни подряд (стрик)
+  final int streakDays;
+  final int? age;
+  final String? gender;
+  final String? goal;
 
-  // Добавили streakDays со значением 3 по умолчанию
-  UserData({this.coins = 0, this.currentLevel = 1, this.streakDays = 3});
+  UserData({
+    this.coins = 0, 
+    this.currentLevel = 1, 
+    this.streakDays = 1,
+    this.age,
+    this.gender,
+    this.goal,
+  });
 
-  UserData copyWith({int? coins, int? currentLevel, int? streakDays}) {
+  UserData copyWith({
+    int? coins, 
+    int? currentLevel, 
+    int? streakDays, 
+    int? age, 
+    String? gender, 
+    String? goal
+  }) {
     return UserData(
       coins: coins ?? this.coins,
       currentLevel: currentLevel ?? this.currentLevel,
-      streakDays: streakDays ?? this.streakDays, // <-- Добавили в копирование
+      streakDays: streakDays ?? this.streakDays,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
+      goal: goal ?? this.goal,
     );
   }
 }
@@ -26,7 +46,11 @@ class UserNotifier extends Notifier<UserData> {
   @override
   UserData build() {
     fetchUserData();
-    return UserData(coins: 0, currentLevel: 1, streakDays: 3); // <-- Обновили начальное состояние
+    return UserData(); 
+  }
+
+  void setProfileData({required int age, required String gender, required String goal}) {
+    state = state.copyWith(age: age, gender: gender, goal: goal);
   }
 
   Future<void> fetchUserData() async {
@@ -37,22 +61,18 @@ class UserNotifier extends Notifier<UserData> {
         state = state.copyWith(
           coins: data['coins'],
           currentLevel: data['current_level'],
-          // Когда бэкенд научится отдавать дни, можно будет раскомментировать эту строку:
-          // streakDays: data['streak_days'],
+          streakDays: data['streak_days'], 
         );
       }
     } catch (e) {
-      print(e);
+      // ИСПОЛЬЗУЕМ debugPrint ВМЕСТО print
+      debugPrint('Помилка fetchUserData: $e'); 
     }
   }
 
   Future<void> finishLevel(int score) async {
     try {
-      final body = jsonEncode({
-        "level": state.currentLevel,
-        "score": score
-      });
-      
+      final body = jsonEncode({"level": state.currentLevel, "score": score});
       final response = await http.post(
         Uri.parse('$baseUrl/api/game/finish'),
         headers: {"Content-Type": "application/json"},
@@ -64,10 +84,12 @@ class UserNotifier extends Notifier<UserData> {
         state = state.copyWith(
           coins: data['coins'],
           currentLevel: data['current_level'],
+          streakDays: data['streak_days'],
         );
       }
     } catch (e) {
-      print(e);
+      // ИСПОЛЬЗУЕМ debugPrint ВМЕСТО print
+      debugPrint('Помилка finishLevel: $e'); 
     }
   }
 
@@ -81,5 +103,4 @@ final userProvider = NotifierProvider<UserNotifier, UserData>(() {
 });
 
 final themeProvider = StateProvider<bool>((ref) => false);
-
 final languageProvider = StateProvider<String>((ref) => 'kz');

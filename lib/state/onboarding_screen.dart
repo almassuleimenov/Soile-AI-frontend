@@ -45,6 +45,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeOutQuart,
       );
     } else {
+      final goalsList = ['Начать говорить', 'Развивать речь', 'Подготовка к школе', 'Развитие логики'];
+      ref.read(userProvider.notifier).setProfileData(
+        age: _selectedAge!,
+        gender: _selectedGender == 0 ? 'boy' : 'girl',
+        goal: goalsList[_selectedGoal!],
+      );
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(

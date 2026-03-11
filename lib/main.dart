@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:google_fonts/google_fonts.dart'; // <--- 1. ИМПОРТИРУЕМ ПАКЕТ ШРИФТОВ
+import 'package:google_fonts/google_fonts.dart'; 
 import 'state/map_screen.dart';
 import 'state/shop_screen.dart';
 import 'state/profile_screen.dart';
 import 'state/user_state.dart';
-import 'state/splash_screen.dart'; // <--- ДОБАВЬ ЭТОТ ИМПОРТ
-import 'state/ai_chat_screen.dart'; // <--- ДОБАВЬ ЭТОТ ИМПОРТ
+import 'state/splash_screen.dart'; 
+import 'state/ai_chat_screen.dart'; 
 
 void main() {
   runApp(const ProviderScope(child: CapybaraApp()));
@@ -25,27 +25,23 @@ class CapybaraApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       
-      // СВЕТЛАЯ ТЕМА
       theme: ThemeData(
         brightness: Brightness.light,
         primaryColor: const Color(0xFFFFCC00),
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
         useMaterial3: true,
-        // --- 2. ПРИМЕНЯЕМ ШРИФТ NUNITO ДЛЯ СВЕТЛОЙ ТЕМЫ ---
         textTheme: GoogleFonts.nunitoTextTheme(
-          ThemeData.light().textTheme, // Берем стандартные размеры и применяем Nunito
+          ThemeData.light().textTheme, 
         ),
       ),
       
-      // ТЕМНАЯ ТЕМА
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: const Color(0xFFFFCC00),
         scaffoldBackgroundColor: const Color(0xFF1A1A2E),
         useMaterial3: true,
-        // --- 3. ПРИМЕНЯЕМ ШРИФТ NUNITO ДЛЯ ТЕМНОЙ ТЕМЫ ---
         textTheme: GoogleFonts.nunitoTextTheme(
-          ThemeData.dark().textTheme, // Берем стандартные размеры для темной темы
+          ThemeData.dark().textTheme, 
         ),
       ),
       home: const SplashScreen(),
@@ -61,7 +57,8 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  int _currentIndex = 0; // Карта по умолчанию
+  int _currentIndex = 0; 
+  late PageController _pageController; // <-- ДОБАВИЛИ КОНТРОЛЛЕР СТРАНИЦ
 
   final List<Widget> _screens = [
     const MapScreen(),
@@ -71,14 +68,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Инициализируем контроллер
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
 
     return Scaffold(
       extendBody: true, 
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _screens[_currentIndex],
+      // <-- ИСПОЛЬЗУЕМ PAGEVIEW ВМЕСТО ANIMATEDSWITCHER -->
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(), // Отключаем свайп пальцем, чтобы работали только кнопки снизу
+        children: _screens,
       ),
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
@@ -98,6 +110,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           setState(() {
             _currentIndex = index;
           });
+          // <-- АНИМИРУЕМ ПЕРЕХОД МЕЖДУ ЭКРАНАМИ -->
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
       ),
     );

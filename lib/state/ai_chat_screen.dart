@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'user_state.dart';
 
-// Простая модель для сообщений
 class ChatMessage {
   final String text;
   final bool isUser;
@@ -17,18 +18,24 @@ class AiChatScreen extends ConsumerStatefulWidget {
   ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends ConsumerState<AiChatScreen> {
+// 1. ДОБАВЛЕН AutomaticKeepAliveClientMixin
+class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  // Список сообщений (пока здесь будет стартовое приветствие)
   final List<ChatMessage> _messages = [];
   bool _isInit = false;
+  bool _isTyping = false; 
+
+  final String baseUrl = 'https://capybara-api-0cte.onrender.com';
+
+  // 2. ГОВОРИМ FLUTTER СОХРАНЯТЬ ЭКРАН В ПАМЯТИ
+  @override
+  bool get wantKeepAlive => true; 
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Инициализируем первое сообщение в зависимости от выбранного языка
     if (!_isInit) {
       final isKz = ref.read(languageProvider) == 'kz';
       _messages.add(
@@ -50,38 +57,74 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
+  Future<void> _sendMessage() async {
+    final userData = ref.read(userProvider);
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
-    final text = _controller.text;
+    final isKz = ref.read(languageProvider) == 'kz';
+
     setState(() {
-      // Добавляем сообщение пользователя
       _messages.add(ChatMessage(text: text, isUser: true));
+      _isTyping = true; 
     });
     
     _controller.clear();
     _scrollToBottom();
 
-    // ТУТ В БУДУЩЕМ БУДЕТ ЗАПРОС К ТВОЕМУ ИИ (API)
-    // А пока сделаем фейковую задержку и ответ-заглушку
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      final isKz = ref.read(languageProvider) == 'kz';
-      
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            text: isKz
-                ? 'Бұл жағдайда "Түтікше" және "Тентек тіл" жаттығуларын жасауды ұсынамын. Артикуляциялық гимнастика бөліміне өтіп, бірге қайталап көріңіздер! ✨'
-                : 'В таком случае отлично помогут упражнения "Трубочка" и "Озорной язычок". Перейдите в раздел гимнастики и попробуйте повторить их вместе! ✨',
-            isUser: false,
-          ),
-        );
-      });
-      _scrollToBottom();
-    });
-  }
+    try {
+      // --- СОБИРАЕМ ВСЮ ИСТОРИЮ ЧАТА ---
+      List<Map<String, String>> chatHistory = [];
+      for (var msg in _messages) {
+        chatHistory.add({
+          // Если сообщение от пользователя, пишем "user", если от ИИ - "assistant"
+          "role": msg.isUser ? "user" : "assistant",
+          "content": msg.text,
+        });
+      }
 
+      final Map<String, dynamic> requestBody = {
+        "messages": chatHistory, // <--- Отправляем ВЕСЬ МАССИВ сообщений
+        "language": isKz ? "kz" : "ru",
+      };
+
+      if (userData.age != null) requestBody["child_age"] = userData.age;
+      if (userData.gender != null) requestBody["child_gender"] = userData.gender;
+      if (userData.goal != null) requestBody["parent_goal"] = userData.goal;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/chat/ask'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        setState(() {
+          _messages.add(ChatMessage(text: data['reply'], isUser: false));
+          _isTyping = false;
+        });
+      } else {
+        setState(() {
+          _messages.add(ChatMessage(
+            text: isKz ? 'Кешіріңіз, қате шықты. Қайта көріңізші 🥺' : 'Извините, произошла ошибка. Попробуйте еще раз 🥺', 
+            isUser: false
+          ));
+          _isTyping = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _messages.add(ChatMessage(
+          text: isKz ? 'Интернетке қосылу қатесі 🌐' : 'Ошибка подключения к интернету 🌐', 
+          isUser: false
+        ));
+        _isTyping = false;
+      });
+    }
+    
+    _scrollToBottom();
+  }
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -96,14 +139,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 3. ОБЯЗАТЕЛЬНЫЙ ВЫЗОВ ДЛЯ МИКСИНА
+
     final isDarkMode = ref.watch(themeProvider);
     final isKz = ref.watch(languageProvider) == 'kz';
 
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final cardColor = isDarkMode ? const Color(0xFF2A2D43) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
-    
-    // Фирменный синий цвет для сообщений пользователя
     final brandBlue = const Color(0xFF56A8E6); 
 
     return Scaffold(
@@ -112,7 +155,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         bottom: false,
         child: Column(
           children: [
-            // --- ШАПКА ЧАТА ---
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               decoration: BoxDecoration(
@@ -141,19 +183,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     children: [
                       Text(
                         isKz ? 'ИИ Логопед' : 'ИИ Логопед',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor),
                       ),
                       Text(
                         isKz ? 'Желіде 🟢' : 'В сети 🟢',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -161,14 +195,44 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
             ),
 
-            // --- СПИСОК СООБЩЕНИЙ ---
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 100),
-                itemCount: _messages.length,
+                padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 20),
+                itemCount: _messages.length + (_isTyping ? 1 : 0), 
                 physics: const BouncingScrollPhysics(),
                 itemBuilder: (context, index) {
+                  if (index == _messages.length && _isTyping) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20), topRight: Radius.circular(20),
+                            bottomLeft: Radius.circular(5), bottomRight: Radius.circular(20),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 15, height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: brandBlue),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              isKz ? 'Жауап жазуда...' : 'Печатает...',
+                              style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
                   final message = _messages[index];
                   final isMe = message.isUser;
 
@@ -177,9 +241,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
-                      ),
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                       decoration: BoxDecoration(
                         color: isMe ? brandBlue : cardColor,
                         borderRadius: BorderRadius.only(
@@ -198,11 +260,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                       ),
                       child: Text(
                         message.text,
-                        style: TextStyle(
-                          color: isMe ? Colors.white : textColor,
-                          fontSize: 16,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(color: isMe ? Colors.white : textColor, fontSize: 16, height: 1.4),
                       ),
                     ),
                   );
@@ -210,9 +268,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
             ),
 
-            // --- ПОЛЕ ВВОДА ---
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 100), // Отступ снизу для навигации
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 100), 
               decoration: BoxDecoration(
                 color: cardColor,
                 boxShadow: [
@@ -246,11 +303,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
+                    onTap: _isTyping ? null : _sendMessage, 
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.all(12),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFCC00),
+                      decoration: BoxDecoration(
+                        color: _isTyping ? Colors.grey : const Color(0xFFFFCC00),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),

@@ -3,15 +3,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart'; // Требует: flutter pub add intl
+import 'package:intl/intl.dart'; 
 import 'user_state.dart';
 
 class ParentDashboardScreen extends ConsumerStatefulWidget {
   const ParentDashboardScreen({super.key});
 
   static void showProtected(BuildContext context, WidgetRef ref) {
-    final isKz = ref.read(languageProvider) == 'kz';
+    final currentLang = ref.read(languageProvider);
     final isDarkMode = ref.read(themeProvider);
+
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
     
     final random = Random();
     final num1 = random.nextInt(4) + 2; 
@@ -28,7 +34,7 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
           backgroundColor: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            isKz ? 'Тек ата-аналар үшін 👨‍👩‍👧' : 'Только для родителей 👨‍👩‍👧',
+            getText('Тек ата-аналар үшін 👨‍👩‍👧', 'Только для родителей 👨‍👩‍👧', 'For parents only 👨‍👩‍👧'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -39,7 +45,7 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isKz ? 'Кіру үшін мысалды шешіңіз:' : 'Решите пример, чтобы войти:',
+                getText('Кіру үшін мысалды шешіңіз:', 'Решите пример, чтобы войти:', 'Solve the math problem to enter:'),
                 style: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
               ),
               const SizedBox(height: 15),
@@ -73,11 +79,10 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                isKz ? 'Жабу' : 'Отмена',
+                getText('Жабу', 'Отмена', 'Cancel'),
                 style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
             ),
-            // ИСПРАВЛЕНА ОПЕЧАТКА: ElevatedButton вместо ElevButton
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFCC00),
@@ -96,7 +101,7 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
                 }
               },
               child: Text(
-                isKz ? 'Кіру' : 'Войти',
+                getText('Кіру', 'Войти', 'Enter'),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
@@ -121,6 +126,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
     _fetchAnalytics();
   }
 
+  // Универсальная функция перевода
+  String _getText(String lang, String kz, String ru, String en) {
+    if (lang == 'kz') return kz;
+    if (lang == 'ru') return ru;
+    return en;
+  }
+
   Future<void> _fetchAnalytics() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/users/analytics'));
@@ -136,7 +148,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
     }
   }
 
-  String _formatTime(String isoString, bool isKz) {
+  String _formatTime(String isoString, String lang) {
     final date = DateTime.parse(isoString).toLocal();
     final now = DateTime.now();
     final diff = now.difference(date);
@@ -144,39 +156,39 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
     final timeFormat = DateFormat('HH:mm').format(date);
     
     if (diff.inDays == 0 && now.day == date.day) {
-      return isKz ? 'Бүгін, $timeFormat' : 'Сегодня, $timeFormat';
+      return _getText(lang, 'Бүгін, $timeFormat', 'Сегодня, $timeFormat', 'Today, $timeFormat');
     } else if (diff.inDays == 1 || (diff.inDays == 0 && now.day != date.day)) {
-      return isKz ? 'Кеше, $timeFormat' : 'Вчера, $timeFormat';
+      return _getText(lang, 'Кеше, $timeFormat', 'Вчера, $timeFormat', 'Yesterday, $timeFormat');
     } else {
       final dateFormat = DateFormat('dd.MM').format(date);
       return '$dateFormat, $timeFormat';
     }
   }
 
-  String _formatTotalMinutes(int totalMinutes, bool isKz) {
+  String _formatTotalMinutes(int totalMinutes, String lang) {
     if (totalMinutes < 60) {
-      // ИСПРАВЛЕНА ИНТЕРПОЛЯЦИЯ: убраны лишние {}
-      return isKz ? '${totalMinutes}м' : '${totalMinutes}м';
+      return _getText(lang, '${totalMinutes}м', '${totalMinutes}м', '${totalMinutes}m');
     }
     int hours = totalMinutes ~/ 60;
     int mins = totalMinutes % 60;
-    // ИСПРАВЛЕНА ИНТЕРПОЛЯЦИЯ: убраны лишние {}
-    return isKz ? '${hours}с ${mins}м' : '${hours}ч ${mins}м';
+    return _getText(lang, '${hours}с ${mins}м', '${hours}ч ${mins}м', '${hours}h ${mins}m');
   }
 
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz';
+    final currentLang = ref.watch(languageProvider);
 
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final cardColor = isDarkMode ? const Color(0xFF2A2D43) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
 
-    final List<String> days = isKz 
-        ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жк'] 
-        : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    final List<String> days = currentLang == 'kz'
+        ? ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жк']
+        : currentLang == 'ru'
+            ? ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -185,7 +197,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
         title: Text(
-          isKz ? 'Ата-аналар тақтасы' : 'Панель родителей',
+          _getText(currentLang, 'Ата-аналар тақтасы', 'Панель родителей', 'Parent Dashboard'),
           style: TextStyle(color: textColor, fontWeight: FontWeight.w800),
         ),
         centerTitle: true,
@@ -203,8 +215,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
                   children: [
                     Expanded(
                       child: _buildSummaryCard(
-                        isKz ? 'Оқу уақыты' : 'Время учебы', 
-                        _formatTotalMinutes(_analyticsData?['total_minutes'] ?? 0, isKz), 
+                        _getText(currentLang, 'Оқу уақыты', 'Время учебы', 'Study Time'), 
+                        _formatTotalMinutes(_analyticsData?['total_minutes'] ?? 0, currentLang), 
                         Icons.timer_rounded, 
                         Colors.purpleAccent, 
                         cardColor, 
@@ -214,7 +226,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
                     const SizedBox(width: 15),
                     Expanded(
                       child: _buildSummaryCard(
-                        isKz ? 'Өтілген деңгейлер' : 'Пройдено', 
+                        _getText(currentLang, 'Өтілген деңгейлер', 'Пройдено', 'Completed'), 
                         '${userData.currentLevel > 1 ? userData.currentLevel - 1 : 0}', 
                         Icons.flag_rounded, 
                         Colors.green, 
@@ -228,7 +240,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
 
                 // --- ГРАФИК АКТИВНОСТИ ---
                 Text(
-                  isKz ? 'Апталық белсенділік (минут)' : 'Активность за неделю (минуты)',
+                  _getText(currentLang, 'Апталық белсенділік (минут)', 'Активность за неделю (минуты)', 'Weekly Activity (minutes)'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                 ),
                 const SizedBox(height: 15),
@@ -300,19 +312,30 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
 
                 // --- ПОСЛЕДНИЕ ДЕЙСТВИЯ ---
                 Text(
-                  isKz ? 'Соңғы әрекеттер' : 'Последние действия',
+                  _getText(currentLang, 'Соңғы әрекеттер', 'Последние действия', 'Recent Actions'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                 ),
                 const SizedBox(height: 15),
                 
                 if (_analyticsData?['recent_actions'] != null && _analyticsData!['recent_actions'].isNotEmpty)
                   ...(_analyticsData!['recent_actions'] as List).map((action) {
+                    
+                    // Обрабатываем язык логов из бэкенда (добавили fallback на случай отсутствия action_en)
+                    String actionDescription = '';
+                    if (currentLang == 'kz') {
+                      actionDescription = action['action_kz'] ?? action['action_ru'] ?? '';
+                    } else if (currentLang == 'ru') {
+                      actionDescription = action['action_ru'] ?? '';
+                    } else {
+                      actionDescription = action['action_en'] ?? action['action_ru'] ?? '';
+                    }
+
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _buildActionRow(
-                        action['emoji'], 
-                        isKz ? action['action_kz'] : action['action_ru'], 
-                        _formatTime(action['created_at'], isKz), 
+                        action['emoji'] ?? '⚙️', 
+                        actionDescription, 
+                        _formatTime(action['created_at'], currentLang), 
                         cardColor, 
                         textColor, 
                         isDarkMode
@@ -324,7 +347,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Text(
-                        isKz ? 'Әзірге ештеңе жоқ 👀' : 'Пока ничего нет 👀',
+                        _getText(currentLang, 'Әзірге ештеңе жоқ 👀', 'Пока ничего нет 👀', 'Nothing here yet 👀'),
                         style: TextStyle(color: Colors.grey.shade500),
                       ),
                     ),

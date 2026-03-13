@@ -20,24 +20,31 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
   late AnimationController _animationController;
   int _currentIndex = 0;
 
-  // Превратили список в метод, чтобы он мог принимать текущий язык (isKz)
-  List<Map<String, String>> _getExercises(bool isKz) {
+  // Вспомогательная функция для перевода
+  String _getText(String lang, String kz, String ru, String en) {
+    if (lang == 'kz') return kz;
+    if (lang == 'ru') return ru;
+    return en;
+  }
+
+  // Обновленный метод, принимающий строку языка ('kz', 'ru', 'en')
+  List<Map<String, String>> _getExercises(String lang) {
     return [
       {
-        'title': isKz ? 'Жымию жаса' : 'Улыбочка',
-        'subtitle': isKz ? 'Тістеріңді көрсетіп, кең жымиыңыз' : 'Покажи зубки и широко улыбнись',
+        'title': _getText(lang, 'Жымию жаса', 'Улыбочка', 'Smile'),
+        'subtitle': _getText(lang, 'Тістеріңді көрсетіп, кең жымиыңыз', 'Покажи зубки и широко улыбнись', 'Show your teeth and smile widely'),
         'emoji': '😁',
         'color': '0xFFE3F2FD', 
       },
       {
-        'title': isKz ? 'Түтікше' : 'Трубочка',
-        'subtitle': isKz ? 'Еріндеріңді алға қарай соз' : 'Вытяни губы вперед трубочкой',
+        'title': _getText(lang, 'Түтікше', 'Трубочка', 'Tube'),
+        'subtitle': _getText(lang, 'Еріндеріңді алға қарай соз', 'Вытяни губы вперед трубочкой', 'Stretch your lips forward like a tube'),
         'emoji': '😗',
         'color': '0xFFFFF9C4', 
       },
       {
-        'title': isKz ? 'Тентек тіл' : 'Озорной язычок',
-        'subtitle': isKz ? 'Тіліңді шығарып, төмен-жоғары қозғалт' : 'Высуни язычок и подвигай им вверх-вниз',
+        'title': _getText(lang, 'Тентек тіл', 'Озорной язычок', 'Playful Tongue'),
+        'subtitle': _getText(lang, 'Тіліңді шығарып, төмен-жоғары қозғалт', 'Высуни язычок и подвигай им вверх-вниз', 'Stick out your tongue and move it up and down'),
         'emoji': '😛',
         'color': '0xFFFCE4EC', 
       },
@@ -65,9 +72,9 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
 
   void _nextPage() {
     HapticFeedback.lightImpact();
-    // Читаем язык напрямую из провайдера для логики
-    final isKz = ref.read(languageProvider) == 'kz';
-    final exercises = _getExercises(isKz);
+    
+    final currentLang = ref.read(languageProvider);
+    final exercises = _getExercises(currentLang);
 
     if (_currentIndex < exercises.length - 1) {
       setState(() => _currentIndex++);
@@ -129,10 +136,8 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider); 
-    
-    // Смотрим выбранный язык
-    final isKz = ref.watch(languageProvider) == 'kz';
-    final exercises = _getExercises(isKz);
+    final currentLang = ref.watch(languageProvider);
+    final exercises = _getExercises(currentLang);
 
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
@@ -257,7 +262,7 @@ class _GymnasticsScreenState extends ConsumerState<GymnasticsScreen> with Single
                     ),
                     child: Center(
                       child: Text(
-                        isKz ? 'ОЙНАУ! 🚀' : 'ИГРАТЬ! 🚀', // Меняем текст кнопки
+                        _getText(currentLang, 'ОЙНАУ! 🚀', 'ИГРАТЬ! 🚀', 'PLAY! 🚀'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,

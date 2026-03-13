@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'user_state.dart';
 
-// Наш боевой сервер на Render!
 const String baseUrl = 'https://capybara-api-0cte.onrender.com';
 
 class ShopScreen extends ConsumerStatefulWidget {
@@ -20,17 +19,22 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   List<dynamic> _shopItems = [];
   bool _isLoading = true;
 
-  // Ключ для счетчика монет, чтобы мы знали, куда должны лететь алмазы!
   final GlobalKey _coinCounterKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _fetchSkins(); // Загружаем скины при открытии магазина
+    _fetchSkins();
   }
 
-  // Функция для получения списка скинов с бэкенда
+  String _getText(String lang, String kz, String ru, String en) {
+    if (lang == 'kz') return kz;
+    if (lang == 'ru') return ru;
+    return en;
+  }
+
   Future<void> _fetchSkins() async {
+    final currentLang = ref.read(languageProvider);
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/shop/skins'));
       if (response.statusCode == 200) {
@@ -41,27 +45,22 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         });
       }
     } catch (e) {
-      final isKz = ref.read(languageProvider) == 'kz';
-      print(isKz ? 'Дүкенді жүктеу қатесі: $e' : 'Ошибка загрузки магазина: $e');
+      debugPrint(_getText(currentLang, 'Дүкенді жүктеу қатесі: $e', 'Ошибка загрузки магазина: $e', 'Shop loading error: $e'));
       setState(() => _isLoading = false);
     }
   }
 
-  // Анимация вылетающих монеток
   void _spawnFlyingCoins(Offset startPosition) {
-    // Находим координаты нашего счетчика монет в шапке
     final RenderBox? targetBox = _coinCounterKey.currentContext?.findRenderObject() as RenderBox?;
     if (targetBox == null) return;
     
     final targetPosition = targetBox.localToGlobal(Offset.zero);
     final random = Random();
 
-    // Создаем "горсть" из 5 алмазиков
     for (int i = 0; i < 5; i++) {
       Future.delayed(Duration(milliseconds: i * 80), () {
         if (!mounted) return;
         
-        // Легкий разброс на старте, чтобы они не летели одной линией
         final randomOffset = Offset(
           startPosition.dx - 30 + random.nextInt(60), 
           startPosition.dy - 30 + random.nextInt(60),
@@ -73,7 +72,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             start: randomOffset,
             end: targetPosition,
             onComplete: () {
-              entry.remove(); // Удаляем алмаз после завершения полета
+              entry.remove(); 
             },
           ),
         );
@@ -82,11 +81,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     }
   }
 
-  // Функция для покупки скина на бэкенде
-  // ТЕПЕРЬ ПРИНИМАЕТ tapPosition (координаты нажатия)
   Future<void> _buySkin(int index, Map<String, dynamic> item, Offset tapPosition) async {
     final userData = ref.read(userProvider);
-    final isKz = ref.read(languageProvider) == 'kz'; 
+    final currentLang = ref.read(languageProvider); 
     
     if (_purchasedItems.contains(index)) return; 
 
@@ -99,10 +96,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             _purchasedItems.add(index);
           });
 
-          // 1. ЗАПУСКАЕМ АНИМАЦИЮ ГОРСТИ АЛМАЗОВ!
           _spawnFlyingCoins(tapPosition);
           
-          // 2. Списываем монеты с ЗАДЕРЖКОЙ (чтобы цифра упала в момент прилета алмазов)
           Future.delayed(const Duration(milliseconds: 700), () {
             ref.read(userProvider.notifier).addCoins(-item['price']);
           });
@@ -110,7 +105,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(isKz ? 'Алақай! Сіз ${item['name']} скинін сатып алдыңыз 🎉' : 'Ура! Вы купили скин ${item['name']} 🎉'),
+                content: Text(_getText(currentLang, 'Алақай! Сіз ${item['name']} скинін сатып алдыңыз 🎉', 'Ура! Вы купили скин ${item['name']} 🎉', 'Yay! You bought the ${item['name']} skin 🎉')),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -118,15 +113,15 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             );
           }
         } else {
-           print(isKz ? 'Сервер сатып алуға рұқсат бермеді: ${response.body}' : 'Сервер не разрешил покупку: ${response.body}');
+           debugPrint(_getText(currentLang, 'Сервер сатып алуға рұқсат бермеді: ${response.body}', 'Сервер не разрешил покупку: ${response.body}', 'Server denied purchase: ${response.body}'));
         }
       } catch (e) {
-         print(isKz ? 'Сатып алу қатесі: $e' : 'Ошибка покупки: $e');
+         debugPrint(_getText(currentLang, 'Сатып алу қатесі: $e', 'Ошибка покупки: $e', 'Purchase error: $e'));
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isKz ? 'Тиындар жеткіліксіз! Деңгейлерді өт 💎' : 'Не хватает монеток! Пройди уровни 💎'),
+          content: Text(_getText(currentLang, 'Тиындар жеткіліксіз! Деңгейлерді өт 💎', 'Не хватает монеток! Пройди уровни 💎', 'Not enough coins! Play levels 💎')),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -139,7 +134,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz'; 
+    final currentLang = ref.watch(languageProvider); 
 
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA),
@@ -154,7 +149,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  isKz ? 'Дүкен' : 'Магазин', 
+                  _getText(currentLang, 'Дүкен', 'Магазин', 'Shop'), 
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -188,7 +183,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                         isPurchased: isPurchased,
                         canAfford: canAfford,
                         isDarkMode: isDarkMode,
-                        isKz: isKz,
+                        currentLang: currentLang,
                       );
                     },
                   ),
@@ -205,7 +200,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     required bool isPurchased,
     required bool canAfford,
     required bool isDarkMode,
-    required bool isKz,
+    required String currentLang,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -251,7 +246,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 ),
                 const SizedBox(height: 8),
                 
-                // ТУТ ВАЖНОЕ ИЗМЕНЕНИЕ: Используем onTapUp, чтобы получить координаты клика
                 GestureDetector(
                   onTapUp: (details) => _buySkin(index, item, details.globalPosition),
                   child: AnimatedContainer(
@@ -267,7 +261,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     ),
                     child: Center(
                       child: isPurchased 
-                        ? Text(isKz ? 'Сатып алынды' : 'Куплено', style: TextStyle(color: isDarkMode ? Colors.greenAccent : Colors.green, fontWeight: FontWeight.bold))
+                        ? Text(_getText(currentLang, 'Сатып алынды', 'Куплено', 'Purchased'), style: TextStyle(color: isDarkMode ? Colors.greenAccent : Colors.green, fontWeight: FontWeight.bold))
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -344,7 +338,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
               ),
               const SizedBox(width: 10), 
               
-              // --- КЛЮЧ _coinCounterKey ПОВЕШЕН СЮДА ---
               Container(
                 key: _coinCounterKey,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -382,7 +375,6 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   }
 }
 
-// --- НОВЫЙ КЛАСС: Анимация одной летящей монетки ---
 class _FlyingCoin extends StatefulWidget {
   final Offset start;
   final Offset end;
@@ -404,15 +396,13 @@ class _FlyingCoinState extends State<_FlyingCoin> with SingleTickerProviderState
     super.initState();
     _controller = AnimationController(
       vsync: this, 
-      duration: const Duration(milliseconds: 700), // Время полета
+      duration: const Duration(milliseconds: 700), 
     );
     
-    // Анимация позиции (с небольшим красивым отскоком в начале Curves.easeInOutBack)
     _positionAnimation = Tween<Offset>(begin: widget.start, end: widget.end).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutBack),
     );
 
-    // В начале алмаз немного увеличивается, а к концу полета уменьшается
     _scaleAnimation = Tween<double>(begin: 1.5, end: 0.5).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );

@@ -11,9 +11,15 @@ class ProfileScreen extends ConsumerWidget {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
     
-    // Смотрим, какой язык сейчас выбран
+    // Смотрим, какой язык сейчас выбран ('kz', 'ru', 'en')
     final currentLang = ref.watch(languageProvider);
-    final bool isKz = currentLang == 'kz';
+
+    // Удобная функция-помощник для перевода
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
 
     // Умные цвета: адаптируются под тему
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
@@ -57,7 +63,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      isKz ? 'Супер-Капибара 🏆' : 'Супер-Капибара 🏆',
+                      getText('Супер-Капибара 🏆', 'Супер-Капибара 🏆', 'Super-Capybara 🏆'),
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey.shade500,
@@ -76,7 +82,7 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: _buildStatCard(
-                          isKz ? 'Өтілді' : 'Пройдено', 
+                          getText('Өтілді', 'Пройдено', 'Completed'), 
                           '${userData.currentLevel > 1 ? userData.currentLevel - 1 : 0}', 
                           Icons.local_fire_department_rounded, 
                           Colors.orange, 
@@ -87,7 +93,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(width: 15),
                     Expanded(
                       child: _buildStatCard(
-                          isKz ? 'Тиындар' : 'Монеты', 
+                          getText('Тиындар', 'Монеты', 'Coins'), 
                           '${userData.coins}', 
                           Icons.diamond_rounded, 
                           Colors.blueAccent, 
@@ -104,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
-                  isKz ? 'Жетістіктер' : 'Достижения',
+                  getText('Жетістіктер', 'Достижения', 'Achievements'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -122,7 +128,7 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     _buildAchievementBadge(
                       emoji: '🥇', 
-                      title: isKz ? 'Алғашқы жеңіс' : 'Первая победа', 
+                      title: getText('Алғашқы жеңіс', 'Первая победа', 'First Win'), 
                       isUnlocked: userData.currentLevel > 1, 
                       cardColor: cardColor, 
                       textColor: textColor, 
@@ -131,7 +137,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(width: 15),
                     _buildAchievementBadge(
                       emoji: '🔥', 
-                      title: isKz ? '3 күн қатарынан' : '3 дня подряд', 
+                      title: getText('3 күн қатарынан', '3 дня подряд', '3 Day Streak'), 
                       isUnlocked: userData.streakDays >= 3, 
                       cardColor: cardColor, 
                       textColor: textColor, 
@@ -140,7 +146,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(width: 15),
                     _buildAchievementBadge(
                       emoji: '💰', 
-                      title: isKz ? 'Бай' : 'Богач', 
+                      title: getText('Бай', 'Богач', 'Rich'), 
                       isUnlocked: userData.coins >= 100, 
                       cardColor: cardColor, 
                       textColor: textColor, 
@@ -149,7 +155,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(width: 15),
                     _buildAchievementBadge(
                       emoji: '👗', 
-                      title: isKz ? 'Сәнгер' : 'Стилист', 
+                      title: getText('Сәнгер', 'Стилист', 'Stylist'), 
                       isUnlocked: false, 
                       cardColor: cardColor, 
                       textColor: textColor, 
@@ -181,11 +187,10 @@ class ProfileScreen extends ConsumerWidget {
                       _buildSettingsRow(
                         icon: Icons.bar_chart_rounded,
                         iconColor: Colors.deepPurpleAccent,
-                        title: isKz ? 'Ата-аналар тақтасы' : 'Панель родителей',
+                        title: getText('Ата-аналар тақтасы', 'Панель родителей', 'Parent Dashboard'),
                         textColor: textColor,
                         trailing: GestureDetector(
                           onTap: () {
-                            // Вызываем диалог с математическим примером!
                             ParentDashboardScreen.showProtected(context, ref);
                           },
                           child: Container(
@@ -204,7 +209,7 @@ class ProfileScreen extends ConsumerWidget {
                       _buildSettingsRow(
                         icon: isDarkMode ? Icons.nightlight_round : Icons.wb_sunny_rounded,
                         iconColor: isDarkMode ? Colors.indigoAccent : Colors.orange,
-                        title: isKz ? 'Түнгі режим' : 'Ночной режим',
+                        title: getText('Түнгі режим', 'Ночной режим', 'Dark Mode'),
                         textColor: textColor,
                         trailing: Switch(
                           value: isDarkMode,
@@ -220,7 +225,7 @@ class ProfileScreen extends ConsumerWidget {
                       _buildSettingsRow(
                         icon: Icons.volume_up_rounded,
                         iconColor: Colors.green,
-                        title: isKz ? 'Дыбыс' : 'Звук',
+                        title: getText('Дыбыс', 'Звук', 'Sound'),
                         textColor: textColor,
                         trailing: Switch(
                           value: true,
@@ -230,15 +235,21 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
                       
-                      // ЯЗЫК
+                      // ЯЗЫК (Переключает по кругу: KZ -> RU -> EN -> KZ)
                       _buildSettingsRow(
                         icon: Icons.language_rounded,
                         iconColor: Colors.blue,
-                        title: isKz ? 'Тіл' : 'Язык',
+                        title: getText('Тіл', 'Язык', 'Language'),
                         textColor: textColor,
                         trailing: GestureDetector(
                           onTap: () {
-                            ref.read(languageProvider.notifier).state = isKz ? 'ru' : 'kz';
+                            if (currentLang == 'kz') {
+                              ref.read(languageProvider.notifier).state = 'ru';
+                            } else if (currentLang == 'ru') {
+                              ref.read(languageProvider.notifier).state = 'en';
+                            } else {
+                              ref.read(languageProvider.notifier).state = 'kz';
+                            }
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
@@ -248,7 +259,7 @@ class ProfileScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              isKz ? 'ҚАЗ' : 'РУС', 
+                              getText('ҚАЗ', 'РУС', 'ENG'), 
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold, 
                                 color: Color(0xFFFFB300), 
@@ -309,7 +320,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // --- ВИДЖЕТ ДЛЯ АЧИВОК ---
   Widget _buildAchievementBadge({
     required String emoji, 
     required String title, 

@@ -143,10 +143,17 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
     SuccessScreen.show(context);
   }
 
+  // Универсальная функция перевода
+  String _getText(String lang, String kz, String ru, String en) {
+    if (lang == 'kz') return kz;
+    if (lang == 'ru') return ru;
+    return en;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz'; // Читаем язык из провайдера
+    final currentLang = ref.watch(languageProvider); 
 
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
@@ -161,11 +168,11 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
               children: [
                 const SizedBox(height: 40),
                 Text(
-                  isKz ? 'Айт: Т - Т - Т' : 'Скажи: Т - Т - Т', // Перевод
+                  _getText(currentLang, 'Айт: Т - Т - Т', 'Скажи: Т - Т - Т', 'Say: T - T - T'), 
                   style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: textColor),
                 ),
                 Text(
-                  isKz ? 'Ұпай: $_score / $_targetScore' : 'Счет: $_score / $_targetScore', // Перевод
+                  _getText(currentLang, 'Ұпай: $_score / $_targetScore', 'Счет: $_score / $_targetScore', 'Score: $_score / $_targetScore'),
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFFFCC00)),
                 ),
                 const Spacer(),
@@ -213,7 +220,7 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: Text(
-                        isKz ? 'БАСТАУ' : 'НАЧАТЬ', // Перевод
+                        _getText(currentLang, 'БАСТАУ', 'НАЧАТЬ', 'START'),
                         style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)
                       ),
                     ),
@@ -222,7 +229,7 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
                   Column(
                     children: [
                       Text(
-                        isKz ? 'Ой, тиіп кетті!' : 'Ой, задели!', // Перевод
+                        _getText(currentLang, 'Ой, тиіп кетті!', 'Ой, задели!', 'Oops, hit it!'),
                         style: const TextStyle(fontSize: 24, color: Colors.redAccent, fontWeight: FontWeight.bold)
                       ),
                       const SizedBox(height: 10),
@@ -235,7 +242,7 @@ class _TGameScreenState extends ConsumerState<TGameScreen> with TickerProviderSt
                             borderRadius: BorderRadius.circular(30),
                           ),
                           child: Text(
-                            isKz ? 'ҚАЙТАДАН' : 'ЗАНОВО', // Перевод
+                            _getText(currentLang, 'ҚАЙТАДАН', 'ЗАНОВО', 'RETRY'), 
                             style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)
                           ),
                         ),

@@ -18,7 +18,6 @@ class AiChatScreen extends ConsumerStatefulWidget {
   ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-// 1. ДОБАВЛЕН AutomaticKeepAliveClientMixin
 class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -29,7 +28,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
 
   final String baseUrl = 'https://capybara-api-0cte.onrender.com';
 
-  // 2. ГОВОРИМ FLUTTER СОХРАНЯТЬ ЭКРАН В ПАМЯТИ
   @override
   bool get wantKeepAlive => true; 
 
@@ -37,12 +35,20 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isInit) {
-      final isKz = ref.read(languageProvider) == 'kz';
+      final currentLang = ref.read(languageProvider);
+      
+      String initialMessage;
+      if (currentLang == 'kz') {
+        initialMessage = 'Сәлеметсіз бе! Мен Soile AI-мын 🤖. Балаңыздың сөйлеуіне қалай көмектесе аламын? (Мысалы: "Балам Р әрпін айта алмайды" деп жазыңыз)';
+      } else if (currentLang == 'ru') {
+        initialMessage = 'Здравствуйте! Я Soile AI 🤖. Как я могу помочь развитию речи вашего ребенка? (Например, напишите: "Ребенок не выговаривает букву Р")';
+      } else {
+        initialMessage = 'Hello! I am Soile AI 🤖. How can I help your child\'s speech development? (For example, type: "My child can\'t pronounce the letter R")';
+      }
+
       _messages.add(
         ChatMessage(
-          text: isKz 
-              ? 'Сәлеметсіз бе! Мен Soile AI-мын 🤖. Балаңыздың сөйлеуіне қалай көмектесе аламын? (Мысалы: "Балам Р әрпін айта алмайды" деп жазыңыз)' 
-              : 'Здравствуйте! Я Soile AI 🤖. Как я могу помочь развитию речи вашего ребенка? (Например, напишите: "Ребенок не выговаривает букву Р")',
+          text: initialMessage,
           isUser: false,
         ),
       );
@@ -62,7 +68,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final isKz = ref.read(languageProvider) == 'kz';
+    final currentLang = ref.read(languageProvider);
+    
+    // Вспомогательная функция для перевода ошибок и статусов внутри метода
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
 
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
@@ -73,19 +86,17 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
     _scrollToBottom();
 
     try {
-      // --- СОБИРАЕМ ВСЮ ИСТОРИЮ ЧАТА ---
       List<Map<String, String>> chatHistory = [];
       for (var msg in _messages) {
         chatHistory.add({
-          // Если сообщение от пользователя, пишем "user", если от ИИ - "assistant"
           "role": msg.isUser ? "user" : "assistant",
           "content": msg.text,
         });
       }
 
       final Map<String, dynamic> requestBody = {
-        "messages": chatHistory, // <--- Отправляем ВЕСЬ МАССИВ сообщений
-        "language": isKz ? "kz" : "ru",
+        "messages": chatHistory, 
+        "language": currentLang, // Отправляем 'kz', 'ru' или 'en' на бэкенд
       };
 
       if (userData.age != null) requestBody["child_age"] = userData.age;
@@ -107,7 +118,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
       } else {
         setState(() {
           _messages.add(ChatMessage(
-            text: isKz ? 'Кешіріңіз, қате шықты. Қайта көріңізші 🥺' : 'Извините, произошла ошибка. Попробуйте еще раз 🥺', 
+            text: getText('Кешіріңіз, қате шықты. Қайта көріңізші 🥺', 'Извините, произошла ошибка. Попробуйте еще раз 🥺', 'Sorry, an error occurred. Please try again 🥺'), 
             isUser: false
           ));
           _isTyping = false;
@@ -116,7 +127,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(
-          text: isKz ? 'Интернетке қосылу қатесі 🌐' : 'Ошибка подключения к интернету 🌐', 
+          text: getText('Интернетке қосылу қатесі 🌐', 'Ошибка подключения к интернету 🌐', 'Internet connection error 🌐'), 
           isUser: false
         ));
         _isTyping = false;
@@ -125,6 +136,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
     
     _scrollToBottom();
   }
+  
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -139,10 +151,16 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // 3. ОБЯЗАТЕЛЬНЫЙ ВЫЗОВ ДЛЯ МИКСИНА
+    super.build(context); 
 
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz';
+    final currentLang = ref.watch(languageProvider);
+
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
 
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final cardColor = isDarkMode ? const Color(0xFF2A2D43) : Colors.white;
@@ -182,11 +200,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isKz ? 'ИИ Логопед' : 'ИИ Логопед',
+                        getText('ИИ Логопед', 'ИИ Логопед', 'AI Speech Therapist'),
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor),
                       ),
                       Text(
-                        isKz ? 'Желіде 🟢' : 'В сети 🟢',
+                        getText('Желіде 🟢', 'В сети 🟢', 'Online 🟢'),
                         style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -224,7 +242,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              isKz ? 'Жауап жазуда...' : 'Печатает...',
+                              getText('Жауап жазуда...', 'Печатает...', 'Typing...'),
                               style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic),
                             ),
                           ],
@@ -293,7 +311,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> with AutomaticKeepA
                         controller: _controller,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          hintText: isKz ? 'Хабарлама жазыңыз...' : 'Напишите сообщение...',
+                          hintText: getText('Хабарлама жазыңыз...', 'Напишите сообщение...', 'Type a message...'),
                           hintStyle: TextStyle(color: Colors.grey.shade500),
                           border: InputBorder.none,
                         ),

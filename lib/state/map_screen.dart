@@ -46,7 +46,16 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     final userData = ref.watch(userProvider);
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz'; // Смотрим язык
+    
+    // Смотрим текущий язык ('kz', 'ru', 'en')
+    final currentLang = ref.watch(languageProvider); 
+
+    // Вспомогательная функция для перевода
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
     
     final currentLevel = userData.currentLevel; 
     final totalLevels = 15;
@@ -103,7 +112,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                           const Text('🚀', style: TextStyle(fontSize: 24)),
                           const SizedBox(width: 10),
                           Text(
-                            isKz ? 'Жақында...' : 'Скоро...',
+                            getText('Жақында...', 'Скоро...', 'Coming soon...'), // <-- ПЕРЕВОД
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -142,8 +151,8 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                       if (isLocked) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            // Перевод всплывающего сообщения
-                            content: Text(isKz ? 'Алдымен алдыңғы деңгейлерді өт! 🔒' : 'Сначала пройди предыдущие уровни! 🔒'),
+                            // <-- ПЕРЕВОД УВЕДОМЛЕНИЯ
+                            content: Text(getText('Алдымен алдыңғы деңгейлерді өт! 🔒', 'Сначала пройди предыдущие уровни! 🔒', 'Complete previous levels first! 🔒')),
                             duration: const Duration(seconds: 1),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -151,12 +160,9 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                       } else if (isCurrent) {
                         
                         Widget gameToPlay;
-                        // --- ИЗМЕНЕНИЕ ЛОГИКИ ЧЕРЕДОВАНИЯ ИГР ---
                         if (levelNumber % 2 != 0) {
-                          // Если уровень нечетный (1, 3, 5...) - игра TGame
                           gameToPlay = const TGameScreen();
                         } else {
-                          // Если уровень четный (2, 4, 6...) - игра с шариком AGame
                           gameToPlay = const AGameScreen();
                         }
 
@@ -169,7 +175,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                         
                       } else {
                         // Перевод в консоли (для дебага)
-                        print(isKz ? '$levelNumber деңгейді қайта өту' : 'Перепроходим уровень $levelNumber');
+                        print(getText('$levelNumber деңгейді қайта өту', 'Перепроходим уровень $levelNumber', 'Replaying level $levelNumber'));
                       }
                     },
                   ),
@@ -185,7 +191,6 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             position: _topBarOffset,
             child: SafeArea(
               bottom: false,
-              // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ userData
               child: _buildTopBar(userData, isDarkMode), 
             ),
           ),
@@ -194,11 +199,10 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
     );
   }
 
-  // ОБНОВЛЕННЫЙ _buildTopBar ПРИНИМАЕТ UserData
   Widget _buildTopBar(UserData userData, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15), // чуть уменьшил горизонтальный отступ
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15), 
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
         borderRadius: BorderRadius.circular(30),
@@ -218,14 +222,13 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
             child: const Text('🦫', style: TextStyle(fontSize: 20)),
           ),
           
-          // НОВАЯ СТРУКТУРА: Огонек и Монетки рядом
           Row(
             children: [
               // --- БЕЙДЖ: ОГОНЕК (Стрик) ---
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFFFF3E0), // Светло-оранжевый
+                  color: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFFFF3E0), 
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -233,7 +236,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                     const Text('🔥', style: TextStyle(fontSize: 18)),
                     const SizedBox(width: 5),
                     Text(
-                      '${userData.streakDays}', // Берем из состояния
+                      '${userData.streakDays}', 
                       style: TextStyle(
                         color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade800,
                         fontWeight: FontWeight.bold,
@@ -243,7 +246,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with SingleTickerProvider
                   ],
                 ),
               ),
-              const SizedBox(width: 10), // Отступ между бейджами
+              const SizedBox(width: 10), 
               
               // --- БЕЙДЖ: МОНЕТКИ ---
               Container(

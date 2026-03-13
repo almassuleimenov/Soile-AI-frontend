@@ -15,12 +15,12 @@ class AGameScreen extends ConsumerStatefulWidget {
 
 class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderStateMixin {
   bool _isPlaying = false;
-  bool _isGameOver = false; // Когда шарик лопнул
-  double _progress = 0.0; // От 0.0 до 1.0
+  bool _isGameOver = false; 
+  double _progress = 0.0; 
 
   late final AudioRecorder _audioRecorder;
   StreamSubscription<Amplitude>? _amplitudeSubscription;
-  final double _voiceThreshold = -20.0; // Порог чувствительности микрофона
+  final double _voiceThreshold = -20.0; 
 
   @override
   void initState() {
@@ -54,21 +54,17 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
     try {
       await _audioRecorder.startStream(const RecordConfig());
       
-      // Слушаем микрофон каждые 50 миллисекунд
       _amplitudeSubscription = _audioRecorder.onAmplitudeChanged(const Duration(milliseconds: 50)).listen((Amplitude amplitude) {
         if (!_isPlaying || _isGameOver) return;
         
         setState(() {
           if (amplitude.current > _voiceThreshold) {
-            // Ребенок тянет звук! Шарик надувается (нужно около 2.5 секунд непрерывного звука)
             _progress += 0.02; 
           } else {
-            // Ребенок молчит. Шарик потихоньку сдувается
             _progress -= 0.01; 
             if (_progress < 0) _progress = 0;
           }
 
-          // Шарик надулся до конца!
           if (_progress >= 1.0) {
             _progress = 1.0;
             _winGame();
@@ -94,7 +90,6 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
     });
     _stopListening();
     
-    // Показываем анимацию взрыва на секунду, затем экран победы
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         SuccessScreen.show(context);
@@ -102,15 +97,21 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
     });
   }
 
+  // Универсальная функция перевода
+  String _getText(String lang, String kz, String ru, String en) {
+    if (lang == 'kz') return kz;
+    if (lang == 'ru') return ru;
+    return en;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(themeProvider);
-    final isKz = ref.watch(languageProvider) == 'kz';
+    final currentLang = ref.watch(languageProvider); 
 
     final bgColor = isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF8F9FA);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF2D3436);
 
-    // Вычисляем размер шарика на основе прогресса
     final double minSize = 100.0;
     final double maxSize = MediaQuery.of(context).size.width * 0.8;
     final double currentSize = minSize + ((maxSize - minSize) * _progress);
@@ -121,15 +122,14 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
         child: Stack(
           children: [
             Column(
-              children: [
+               children: [
                 const SizedBox(height: 40),
                 Text(
-                  isKz ? 'Соз: А-а-а-а-а 🎈' : 'Тяни: А-а-а-а-а 🎈',
+                  _getText(currentLang, 'Соз: А-а-а-а-а 🎈', 'Тяни: А-а-а-а-а 🎈', 'Say: Ahhhhh 🎈'), // <-- ПЕРЕВОД
                   style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: textColor),
                 ),
                 const SizedBox(height: 15),
                 
-                // Прогресс-бар для наглядности (чтобы родителям было понятно)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: ClipRRect(
@@ -147,7 +147,6 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
                 
                 const Spacer(),
                 
-                // САМ ШАРИК
                 Center(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 100),
@@ -167,7 +166,7 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
                     ),
                     child: Center(
                       child: Text(
-                        _isGameOver ? '💥' : '', // При победе показываем взрыв!
+                        _isGameOver ? '💥' : '', 
                         style: TextStyle(fontSize: currentSize * 0.6),
                       ),
                     ),
@@ -176,7 +175,6 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
                 
                 const Spacer(),
                 
-                // КНОПКА СТАРТА
                 if (!_isPlaying && !_isGameOver)
                   GestureDetector(
                     onTap: _startGame,
@@ -194,7 +192,7 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
                         ],
                       ),
                       child: Text(
-                        isKz ? 'БАСТАУ' : 'НАЧАТЬ',
+                        _getText(currentLang, 'БАСТАУ', 'НАЧАТЬ', 'START'), // <-- ПЕРЕВОД
                         style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.w900)
                       ),
                     ),
@@ -204,7 +202,6 @@ class _AGameScreenState extends ConsumerState<AGameScreen> with TickerProviderSt
               ],
             ),
             
-            // КНОПКА "НАЗАД"
             Align(
               alignment: Alignment.topLeft,
               child: Padding(

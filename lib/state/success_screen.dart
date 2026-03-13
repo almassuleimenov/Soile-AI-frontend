@@ -44,12 +44,17 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // <-- СЛУШАЕМ ТЕМУ И ЯЗЫК!
     final isDarkMode = ref.watch(themeProvider); 
-    final isKz = ref.watch(languageProvider) == 'kz';
+    final currentLang = ref.watch(languageProvider);
+
+    // Универсальная функция перевода
+    String getText(String kz, String ru, String en) {
+      if (currentLang == 'kz') return kz;
+      if (currentLang == 'ru') return ru;
+      return en;
+    }
 
     return Scaffold(
-      // Фон самого экрана оставляем темным полупрозрачным в обоих режимах (это ведь оверлей)
       backgroundColor: Colors.black.withValues(alpha: 0.6),
       body: Stack(
         alignment: Alignment.center,
@@ -85,7 +90,6 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
               width: 300,
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                // АДАПТИВНЫЙ ФОН КАРТОЧКИ
                 color: isDarkMode ? const Color(0xFF2A2D43) : Colors.white,
                 borderRadius: BorderRadius.circular(40),
                 boxShadow: [
@@ -103,11 +107,10 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                   const SizedBox(height: 20),
                   
                   Text(
-                    isKz ? 'ЖАРАЙСЫҢ!' : 'УМНИЦА!', // Перевод текста
+                    getText('ЖАРАЙСЫҢ!', 'УМНИЦА!', 'AWESOME!'), // <-- ПЕРЕВОД
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      // АДАПТИВНЫЙ ТЕКСТ
                       color: isDarkMode ? Colors.white : const Color(0xFF2D3436),
                       letterSpacing: 2.0,
                     ),
@@ -124,7 +127,6 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          // В темной теме делаем синий чуть светлее для контраста
                           color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                         ),
                       ),
@@ -134,7 +136,6 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                   
                   GestureDetector(
                     onTap: () {
-                      // ЗДЕСЬ ИЗМЕНЕНИЕ: вызываем finishLevel(10) вместо addCoins(10)
                       ref.read(userProvider.notifier).finishLevel(10);
                       Navigator.of(context).pop();
                     },
@@ -154,9 +155,9 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          isKz ? 'АРЫ ҚАРАЙ' : 'ДАЛЬШЕ', // Перевод кнопки
+                          getText('АРЫ ҚАРАЙ', 'ДАЛЬШЕ', 'NEXT'), // <-- ПЕРЕВОД
                           style: const TextStyle(
-                            color: Colors.white, // Желтая кнопка всегда с белым текстом
+                            color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.5,

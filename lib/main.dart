@@ -10,18 +10,18 @@ import 'state/splash_screen.dart';
 import 'state/ai_chat_screen.dart'; 
 
 void main() {
-  runApp(const ProviderScope(child: CapybaraApp()));
+  runApp(const ProviderScope(child: SoileApp()));
 }
 
-class CapybaraApp extends ConsumerWidget {
-  const CapybaraApp({super.key});
+class SoileApp extends ConsumerWidget {
+  const SoileApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDarkMode = ref.watch(themeProvider);
 
     return MaterialApp(
-      title: 'Capybara App',
+      title: 'Soile AI', // <-- ОБНОВИЛИ НАЗВАНИЕ ПРИЛОЖЕНИЯ
       debugShowCheckedModeBanner: false,
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       
@@ -58,7 +58,7 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0; 
-  late PageController _pageController; // <-- ДОБАВИЛИ КОНТРОЛЛЕР СТРАНИЦ
+  late PageController _pageController; 
 
   final List<Widget> _screens = [
     const MapScreen(),
@@ -70,7 +70,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Инициализируем контроллер
     _pageController = PageController(initialPage: _currentIndex);
   }
 
@@ -86,10 +85,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     return Scaffold(
       extendBody: true, 
-      // <-- ИСПОЛЬЗУЕМ PAGEVIEW ВМЕСТО ANIMATEDSWITCHER -->
       body: PageView(
         controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // Отключаем свайп пальцем, чтобы работали только кнопки снизу
+        physics: const NeverScrollableScrollPhysics(), // Отключаем свайп пальцем
         children: _screens,
       ),
       bottomNavigationBar: CurvedNavigationBar(
@@ -110,7 +108,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           setState(() {
             _currentIndex = index;
           });
-          // <-- АНИМИРУЕМ ПЕРЕХОД МЕЖДУ ЭКРАНАМИ -->
           _pageController.animateToPage(
             index,
             duration: const Duration(milliseconds: 300),
